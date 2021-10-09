@@ -135,17 +135,19 @@ fn main() {
     let mut chip = Chip::new("/dev/gpiochip0").unwrap();
     let line = chip.get_line(26).unwrap();
     for _attempt in 0..5 {
-        let time = std::time::SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+        let time = std::time::SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
         if let Ok((rh, temp)) = raspi_oled::am2302_reading(&line) {
-            database.execute("INSERT INTO sensor_readings (time, humidity, celsius) VALUES (?1, ?2, ?3)", params![time, rh, temp]).unwrap();
-            display_on_ssd1306(rh, temp);
-            break;
+            if rh > 0 && temp < 500 {
+                database.execute("INSERT INTO sensor_readings (time, humidity, celsius) VALUES (?1, ?2, ?3)", params![time.as_secs(), rh, temp]).unwrap();
+                display_on_ssd1306(rh, temp, time);
+                break;
+            }
         }
     }
 }
 
     
-fn display_on_ssd1306(rh: u16, temp: u16) {
+fn display_on_ssd1306(rh: u16, temp: u16, time: Duration) {
     let i2c = I2cdev::new("/dev/i2c-1").unwrap();
     let interface = I2CDisplayInterface::new(i2c);
     let mut disp = Ssd1306::new(
@@ -163,6 +165,11 @@ fn display_on_ssd1306(rh: u16, temp: u16) {
 
     let text = format!("{}.{}% {}.{}°C", rh / 10, rh % 10, temp / 10, temp % 10);
     Text::new(&text, Point::new(0, 10), text_style)
+            .draw(&mut disp)
+            .unwrap();
+    let secs = time.as_secs();
+    let time = format!("{:02}:{:02} Uhr", (secs / 3600 + 2) % 24, secs / 60 % 60);
+    Text::new(&time, Point::new(0, 32), text_style)
             .draw(&mut disp)
             .unwrap();
     disp.flush().unwrap();
