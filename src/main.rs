@@ -1,3 +1,110 @@
+use embedded_graphics::{
+	draw_target::DrawTarget,
+	pixelcolor::BinaryColor,
+	prelude::{OriginDimensions, Size},
+	primitives::Rectangle,
+};
+use image::{ImageBuffer, Rgb};
+use rusqlite::Connection;
+
+struct FrameOutput {
+	buffer: ImageBuffer<Rgb<u8>, Vec<u8>>,
+}
+
+impl DrawTarget for FrameOutput {
+	type Color = BinaryColor;
+
+	type Error = ();
+
+	fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+	where
+		I: IntoIterator<Item = embedded_graphics::Pixel<Self::Color>>,
+	{
+		for pos in pixels {
+			if pos.0.x < 0 || pos.0.y < 0 || pos.0.x >= 128 || pos.0.y >= 64 {
+				continue;
+			}
+			let color = if pos.1 == BinaryColor::On {
+				Rgb([0, 255, 255])
+			} else {
+				Rgb([0, 0, 0])
+			};
+			self.buffer.put_pixel(pos.0.x as u32, pos.0.y as u32, color);
+		}
+		Ok(())
+	}
+}
+
+impl OriginDimensions for FrameOutput {
+	fn size(&self) -> Size {
+		Size::new(self.buffer.width(), self.buffer.height())
+	}
+}
+
+fn main() {
+	let args = std::env::args().collect::<Vec<_>>();
+	if args.len() < 2 {
+		panic!("missing argument: database path");
+	}
+
+	let mut disp = FrameOutput {
+		buffer: ImageBuffer::new(128, 64),
+	};
+
+	let database = Connection::open(&args[1]).expect("failed to open database");
+
+	let mut query = database
+		.prepare("SELECT celsius FROM sensor_readings ORDER BY sensor_readings.time DESC LIMIT 288")
+		.unwrap();
+	let mut temps: Vec<i32> = query
+		.query_map([], |r| Ok(r.get(0)))
+		.unwrap()
+		.map(Result::unwrap)
+		.map(Result::unwrap)
+		.collect();
+	let mut global_min = 1000;
+	let mut global_max = 0;
+	let mut vals: Vec<(i32, i32)> = vec![];
+	for hour in temps.chunks_mut(6) {
+		hour.sort();
+		let min = hour[1];
+		let mut max = hour[hour.len() - 2];
+		println!("min {} max {}", min, max);
+		// sanity check value
+		if max > 300 {
+			if vals.is_empty() {
+				max = min;
+			} else {
+				max = vals.last().unwrap().1;
+			}
+		}
+
+		global_min = min.min(global_min);
+		global_max = max.max(global_max);
+		vals.push((min, max));
+	}
+	println!("global {} | {}", global_min, global_max);
+	let diff = global_max - global_min;
+	let x = 1;
+	let y = 1;
+	let scaley = 64;
+	let scalex = 2;
+	vals.reverse();
+	for (i, (a, b)) in vals.into_iter().enumerate() {
+		let x = x + i as i32 * scalex;
+		let y1 = y + (global_max - b) * scaley / diff;
+		let y2 = y + (global_max - a) * scaley / diff;
+		let height = y2 - y1 + 1;
+		disp.fill_solid(
+			&Rectangle::new((x, y1).into(), (scalex as u32, height as u32).into()),
+			BinaryColor::On,
+		)
+		.unwrap();
+	}
+
+	disp.buffer.save("/tmp/frame.png").unwrap();
+}
+/*
 use dht_hal::{Dht22, Reading};
 use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::mono_font::iso_8859_7::FONT_9X18;
@@ -120,11 +227,11 @@ fn main() {
 	database
 		.execute(
 			"
-        CREATE TABLE IF NOT EXISTS sensor_readings(
-            time INTEGER PRIMARY KEY,
-            humidity INTEGER NOT NULL,
-            celsius INTEGER NOT NULL
-        )",
+		CREATE TABLE IF NOT EXISTS sensor_readings(
+			time INTEGER PRIMARY KEY,
+			humidity INTEGER NOT NULL,
+			celsius INTEGER NOT NULL
+		)",
 			[],
 		)
 		.unwrap();
@@ -289,3 +396,4 @@ impl OutputPin for LineWrapper {
 			.set_value(1)
 	}
 }
+*/
