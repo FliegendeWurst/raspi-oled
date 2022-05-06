@@ -1,0 +1,5 @@
+/target
+**/*.rs.bk
+events_weekly.json
+events.json
+sensors.db

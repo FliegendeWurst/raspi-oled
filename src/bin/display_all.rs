@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, ops::Sub, time::Duration, fmt::Debug};
 
 use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{
@@ -7,17 +7,15 @@ use embedded_graphics::{
 		ascii::{FONT_10X20, FONT_5X8, FONT_6X9, FONT_9X15},
 		MonoTextStyleBuilder,
 	},
-	pixelcolor::{BinaryColor, Rgb565},
-	prelude::{OriginDimensions, Point, Primitive, Size},
+	pixelcolor::{Rgb565},
+	prelude::{Point, Primitive},
 	primitives::{PrimitiveStyleBuilder, Rectangle},
-	text::Text,
+	text::{Text, renderer::CharacterStyle},
 	Drawable,
 };
-use image::{ImageBuffer, Rgb};
-use linux_embedded_hal::I2cdev;
+use raspi_oled::FrameOutput;
 use rppal::{
 	gpio::Gpio,
-	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
 use rusqlite::Connection;
@@ -37,6 +35,7 @@ struct Events {
 struct Event {
 	name: String,
 	start_time: String,
+	end_time: Option<String>
 }
 
 #[derive(Deserialize)]
@@ -83,7 +82,7 @@ fn main() {
 		hour.sort();
 		let mut min = hour[1];
 		let mut max = hour[hour.len() - 2];
-		println!("min {} max {}", min, max);
+		//println!("min {} max {}", min, max);
 		// sanity check value
 		if max > 300 {
 			if vals.is_empty() {
@@ -98,27 +97,22 @@ fn main() {
 		global_max = max.max(global_max);
 		vals.push((min, max));
 	}
-	println!("global {} | {}", global_min, global_max);
-
-	let hour = time.hour();
-	let minute = time.minute();
-	//let i2c = I2cdev::new("/dev/i2c-1").unwrap();
-	//let interface = I2CDisplayInterface::new(i2c);
-	//let mut disp = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0).into_buffered_graphics_mode();
-	//disp.init().unwrap();
-	//let mut disp = FrameOutput { buffer: ImageBuffer::new(128, 64) };
+	//println!("global {} | {}", global_min, global_max);
 	let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 	let gpio = Gpio::new().unwrap();
 	let dc = gpio.get(25).unwrap().into_output();
-	let mut rst = gpio.get(27).unwrap().into_output();
-
-	// Init SPI
 	let spii = SPIInterfaceNoCS::new(spi, dc);
-	let mut disp = ssd1351::display::display::Ssd1351::new(spii);
+	let disp = ssd1351::display::display::Ssd1351::new(spii);
+	//let mut disp = FrameOutput::new(128, 128);
 
-	// Reset & init
-	//disp.reset(&mut rst, &mut Delay).unwrap();
-	//disp.turn_on().unwrap();
+	let mut disp = draw(disp, time, rh, temp, events, &args, global_min, global_max, vals);
+	let _ = disp.flush();
+	//disp.buffer.save("/tmp/x.png");
+}
+
+fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i64, temp: i64, events: Events, args: &[String], global_min: i32, global_max: i32, mut vals: Vec<(i32, i32)>) -> D where <D as DrawTarget>::Error: Debug {
+	let hour = time.hour();
+	let minute = time.minute();
 
 	let text_style_clock = MonoTextStyleBuilder::new()
 		.font(&FONT_10X20)
@@ -128,7 +122,7 @@ fn main() {
 		.font(&FONT_9X15)
 		.text_color(Rgb565::new(0xff, 0xff, 0xff))
 		.build();
-	let text_style3 = MonoTextStyleBuilder::new()
+	let mut text_style_6x9 = MonoTextStyleBuilder::new()
 		.font(&FONT_6X9)
 		.text_color(Rgb565::new(0xff, 0xff, 0xff))
 		.build();
@@ -163,7 +157,7 @@ fn main() {
 	Text::new(&rh, Point::new(64 + 3, 64 - 4), text_style2)
 		.draw(&mut disp)
 		.unwrap();
-	Text::new("%", Point::new(64 + 3 + 18, 64 - 4), text_style3)
+	Text::new("%", Point::new(64 + 3 + 18, 64 - 4), text_style_6x9)
 		.draw(&mut disp)
 		.unwrap();
 	let temp_int = format!("{:02}", temp / 10);
@@ -175,7 +169,7 @@ fn main() {
 		.draw(&mut disp)
 		.unwrap();
 	let temp_fract = format!("{}", temp % 10);
-	Text::new(&temp_fract, Point::new(64 + 32 + 3 + 18 + 2, 64 - 4), text_style3)
+	Text::new(&temp_fract, Point::new(64 + 32 + 3 + 18 + 2, 64 - 4), text_style_6x9)
 		.draw(&mut disp)
 		.unwrap();
 
@@ -227,7 +221,7 @@ fn main() {
 		("S", "o"),
 	];
 	for i in 0..5 {
-		Text::new(days[day].0, (x + 12 * i + 4, y + 6).into(), text_style3)
+		Text::new(days[day].0, (x + 12 * i + 4, y + 6).into(), text_style_6x9)
 			.draw(&mut disp)
 			.unwrap();
 		Text::new(days[day].1, (x + 12 * i + 10, y + 6).into(), text_style4)
@@ -240,9 +234,12 @@ fn main() {
 	// events
 	let mut all_events = vec![];
 	for event in events.weekly {
-		all_events.push((event.day, event.hour, event.minute, event.duration, event.name));
+		let mut event_time = time.clone();
+		while event_time.weekday().number_days_from_monday() as i32 != event.day {
+			event_time += Duration::from_secs(24 * 60 * 60);
+		}
+		all_events.push((event.day, event.hour, event.minute, event.duration, event.name, event_time.to_julian_day()));
 	}
-	let today = time.date().to_julian_day();
 	let format = format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]").unwrap();
 	for event in events.events {
 		let dt = PrimitiveDateTime::parse(&event.start_time, &format)
@@ -250,21 +247,41 @@ fn main() {
 			.assume_timezone(BERLIN)
 			.unwrap();
 		let julian_day = dt.to_julian_day();
-		if dt < time || julian_day - today > 4 {
+		if dt < time {
 			continue;
 		}
+		let duration = if let Some(end_time) = event.end_time.as_ref() {
+			let dt2 = PrimitiveDateTime::parse(end_time, &format)
+				.unwrap()
+				.assume_timezone(BERLIN)
+				.unwrap();
+			(dt2.sub(dt).as_seconds_f32() / 60.0) as i32
+		} else {
+			30
+		};
 		all_events.push((
 			dt.weekday().number_days_from_monday() as _,
 			dt.hour() as _,
 			dt.minute() as _,
-			30,
+			duration,
 			event.name,
-		)); // TODO length
+			julian_day,
+		));
 	}
+	let today = time.date().to_julian_day();
 	let weekday = time.weekday().number_days_from_monday() as i32;
-	all_events.sort_by_key(|x| (((x.0 + 7) - weekday) % 7, x.1, x.2));
+	all_events.sort_by_key(|x| (x.5, ((x.0 + 7) - weekday) % 7, x.1, x.2));
 	println!("{:?}", all_events);
 	let mut time_until_first = None;
+	let colors = vec![
+		Rgb565::new(0xff >> 3, 0xff >> 2, 0x00 >> 3),
+		Rgb565::new(0xff >> 3, 0x00 >> 2, 0xff >> 3),
+		Rgb565::new(0x00 >> 3, 0xff >> 2, 0xff >> 3),
+		Rgb565::new(0xff >> 3, 0x00 >> 2, 0x00 >> 3),
+		Rgb565::new(0x00 >> 3, 0xff >> 2, 0x00 >> 3),
+		Rgb565::new(0x00 >> 3, 0x00 >> 2, 0xff >> 3),
+		Rgb565::new(0xff >> 3, 0xff >> 2, 0xff >> 3),
+	];
 	for i in 0..5 {
 		let day = (weekday + i) % 7;
 		for hour in 0..24 {
@@ -274,11 +291,11 @@ fn main() {
 				}
 
 				if i == 0 && hour == time.hour() as i32 && minute == (time.minute() as i32 / 6) * 6 {
-					bits.push((i, hour, minute / 6, Rgb565::new(0xff, 0x00, 0xff)));
+					bits.push((i, hour, minute / 6, Some(Rgb565::new(0xff, 0x00, 0xff))));
 				}
 
-				for event in &all_events {
-					if event.0 != day {
+				for (event_idx, event) in all_events.iter().enumerate() {
+					if event.0 != day || event.5 < today || event.5 - today > 4 {
 						continue;
 					}
 					let event_start = event.1 * 60 + event.2;
@@ -286,9 +303,9 @@ fn main() {
 					let now = hour * 60 + minute;
 					let now2 = hour * 60 + minute + 6;
 					if now2 > event_start && now < event_end {
-						bits.push((i, hour, minute / 6, Rgb565::new(0xff, 0xff, 0x10)));
+						bits.push((i, hour, minute / 6, colors.get(event_idx).copied()));
 					}
-					if time_until_first.is_none() {
+					if time_until_first.is_none() && (i > 0 || event.1 > time.hour() as i32 || (event.1 == time.hour() as i32 && event.2 >= time.minute() as i32)) {
 						time_until_first = Some(
 							((i * 24 + event.1) * 60 + event.2) * 60
 								- (time.hour() as i32 * 60 + time.minute() as i32) * 60,
@@ -302,14 +319,24 @@ fn main() {
 		// calculate position
 		let x = x + 4 + d * 12 + m;
 		let y = y + 8 + h;
-		disp.fill_solid(&Rectangle::new((x, y).into(), (1, 1).into()), color)
+		disp.fill_solid(&Rectangle::new((x, y).into(), (1, 1).into()), color.unwrap_or(Rgb565::new(0xff, 0xff, 0x10)))
 			.unwrap();
 		//Rectangle::new((x, y).into(), (1, 1).into()).into_styled(rect_style).draw(&mut disp).unwrap();
 	}
 	if args[3] == "events" {
 		for (i, event) in all_events.iter().take(7).enumerate() {
-			let text = if event.4.len() > 10 { &event.4[0..10] } else { &event.4 };
-			Text::new(text, (x + 2, y + 64 + 9 * i as i32 + 5).into(), text_style3)
+			let text = if event.4.len() > 19 { &event.4[0..19] } else { &event.4 };
+			let day = event.0 as usize;
+			let y = y + 64 + 9 * i as i32 + 5;
+			text_style_6x9.set_text_color(Some(Rgb565::new(0xff, 0xff, 0xff)));
+			Text::new(days[day].0, (x, y).into(), text_style_6x9)
+				.draw(&mut disp)
+				.unwrap();
+			Text::new(days[day].1, (x + 6, y).into(), text_style4)
+				.draw(&mut disp)
+				.unwrap();
+			text_style_6x9.set_text_color(Some(colors[i]));
+			Text::new(text, (x + 14, y).into(), text_style_6x9)
 				.draw(&mut disp)
 				.unwrap();
 		}
@@ -331,14 +358,14 @@ fn main() {
 		Text::new(
 			&format!("{}", global_max as f32 / 10.0),
 			(100, 64 + 10).into(),
-			text_style3,
+			text_style_6x9,
 		)
 		.draw(&mut disp)
 		.unwrap();
 		Text::new(
 			&format!("{}", global_min as f32 / 10.0),
 			(100, 64 + 50).into(),
-			text_style3,
+			text_style_6x9,
 		)
 		.draw(&mut disp)
 		.unwrap();
@@ -360,63 +387,6 @@ fn main() {
 			.draw(&mut disp)
 			.unwrap();
 	}
-	/*
-	sleep(Duration::from_secs(2));
-	disp.clear();
 
-	let base_y = 0.0;
-	let max_dy = 32.0;
-	let mut tick = 0;
-	loop {
-		let y = if tick % 32 < 16 {
-			base_y + (tick % 16) as f32 / 16.0 * max_dy
-		} else {
-			base_y + max_dy - (tick % 16) as f32 / 16.0 * max_dy
-		} as i32;
-		tick += 1;
-		Line::new(Point::new(8, y + 16), Point::new(8 + 16, y + 16))
-			.into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-			.draw(&mut disp).unwrap();
-		Line::new(Point::new(8, y + 16), Point::new(8 + 8, y))
-			.into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-			.draw(&mut disp).unwrap();
-
-		Line::new(Point::new(8 + 16, y + 16), Point::new(8 + 8, y))
-			.into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-			.draw(&mut disp).unwrap();
-
-		Rectangle::new(Point::new(48, y), Size::new(16, 16))
-			.into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-			.draw(&mut disp).unwrap();
-
-
-		Circle::new(Point::new(88, y), 16)
-			.into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-			.draw(&mut disp).unwrap();
-
-		/*
-		Text::new(&format!("Hello from frame {}", tick), Point::new(0, 56), text_style)
-			.draw(&mut disp)
-			.unwrap();
-		*/
-		disp.flush().unwrap();
-
-		sleep(Duration::from_millis(10));
-
-		disp.clear();
-
-		/*
-		let im: ImageRaw<BinaryColor> = ImageRaw::new(IMG_DATA, 64);
-		let img = Image::new(&im, Point::new(32, 0));
-		img.draw(&mut disp).unwrap();
-		disp.flush().unwrap();
-
-		sleep(Duration::from_secs(2));
-		disp.clear();
-		*/
-	}
-	*/
-
-	let _ = disp.flush();
-	//disp.buffer.save("/tmp/frame.png").unwrap();
+	disp
 }

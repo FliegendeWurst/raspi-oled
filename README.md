@@ -1,17 +1,20 @@
-# raspi demo for oled ssd1306 display
+# raspi demo for OLED ssd1351 display
 
 ## Quick start
 
+```bash
 > nix-shell
->
 > rustup target add arm-unknown-linux-musleabihf
->
 > cargo build --release --target arm-unknown-linux-musleabihf
-
-Then scp the release file to your raspi.
+> scp target/arm-unknown-linux-musleabihf/release/{display_all,display_off,refresh_json,take_measurement} 'pi@raspberrypi:~'
+> # on the Pi:
+> patchelf --set-interpreter /lib/ld-linux-armhf.so.3 display_all
+> ./display_off on
+> ./display_all sensors.db events.json temps
+```
 
 ## Example
 
-![picture](./images/01.jpg)
+![picture](./images/temps.png)
 
-![primitive](./images/02.jpg)
+![primitive](./images/events.png)

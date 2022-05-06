@@ -1,0 +1,16 @@
+"weekly": [
+	{
+		"name": "Example 1",
+		"day": 0,
+		"hour": 9,
+		"minute": 45,
+		"duration": 90
+	},
+	{
+		"name": "Example 2",
+		"day": 3,
+		"hour": 11,
+		"minute": 15,
+		"duration": 45
+	}
+]
