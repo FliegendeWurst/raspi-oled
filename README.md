@@ -1,5 +1,7 @@
 # raspi demo for OLED ssd1351 display
 
+https://www.waveshare.com/wiki/1.5inch_RGB_OLED_Module
+
 ## Quick start
 
 ```bash
@@ -15,6 +17,8 @@
 
 ## Example
 
-![picture](./images/temps.png)
+![temperature graph](./images/temps.png)
 
-![primitive](./images/events.png)
+![events](./images/events.png)
+
+(the second blue text is brighter on the OLED)
