@@ -47,6 +47,25 @@ struct Weekly {
 	duration: i32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Status {
+	Unknown,
+	Down,
+	Bad,
+	Good
+}
+
+impl Status {
+	fn color(&self) -> Rgb565 {
+		match self {
+			Status::Unknown => Rgb565::new(100 >> 3, 100 >> 2, 100 >> 3),
+			Status::Down => Rgb565::new(0xff >> 3, 0xff >> 2, 0),
+			Status::Bad => Rgb565::new(0xff >> 3, 0, 0),
+			Status::Good => Rgb565::new(0, 170 >> 2, 0),
+		}
+	}
+}
+
 fn main() {
 	let args = std::env::args().collect::<Vec<_>>();
 	if args.len() < 4 {
@@ -98,6 +117,18 @@ fn main() {
 		vals.push((min, max));
 	}
 	//println!("global {} | {}", global_min, global_max);
+
+	let status = if let Ok(x) = fs::read_to_string("/run/user/1000/status.json") {
+		let all: Vec<bool> = x.split(' ').map(|x| x.parse().unwrap()).collect();
+		[
+			if all[0] { Status::Good } else { Status::Bad },
+			if all[1] && all[2] { Status::Good } else if all[1] { Status::Down } else { Status::Bad },
+			if all[3] && all[4] { Status::Good } else if all[3] { Status::Down } else { Status::Bad }
+		]
+	} else {
+		[Status::Unknown, Status::Unknown, Status::Unknown]
+	};
+
 	let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 	let gpio = Gpio::new().unwrap();
 	let dc = gpio.get(25).unwrap().into_output();
@@ -105,12 +136,12 @@ fn main() {
 	let disp = ssd1351::display::display::Ssd1351::new(spii);
 	//let mut disp = FrameOutput::new(128, 128);
 
-	let mut disp = draw(disp, time, rh, temp, events, &args, global_min, global_max, vals);
+	let mut disp = draw(disp, time, rh, temp, events, &args, global_min, global_max, vals, status);
 	let _ = disp.flush();
 	//disp.buffer.save("/tmp/x.png");
 }
 
-fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i64, temp: i64, events: Events, args: &[String], global_min: i32, global_max: i32, mut vals: Vec<(i32, i32)>) -> D where <D as DrawTarget>::Error: Debug {
+fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i64, temp: i64, events: Events, args: &[String], global_min: i32, global_max: i32, mut vals: Vec<(i32, i32)>, status: [Status; 3]) -> D where <D as DrawTarget>::Error: Debug {
 	let hour = time.hour();
 	let minute = time.minute();
 
@@ -386,6 +417,15 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 		Text::new(&text, (x + 2, y + 60).into(), text_style2)
 			.draw(&mut disp)
 			.unwrap();
+	}
+
+	let y = 125;
+	let mut x = 125;
+
+	for i in 0..status.len() {
+		let rect = Rectangle::new((x, y).into(), (3, 3).into());
+		disp.fill_solid(&rect, status[status.len() - i - 1].color()).unwrap();
+		x -= 4;
 	}
 
 	disp
