@@ -103,7 +103,7 @@ fn main() {
 		let mut max = hour[hour.len() - 2];
 		//println!("min {} max {}", min, max);
 		// sanity check value
-		if max > 300 {
+		if max > 400 {
 			if vals.is_empty() {
 				max = min;
 			} else {
