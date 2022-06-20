@@ -4,7 +4,7 @@ use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{
 	draw_target::DrawTarget,
 	mono_font::{
-		ascii::{FONT_10X20, FONT_5X8, FONT_6X9, FONT_9X15},
+		ascii::{FONT_10X20, FONT_4X6, FONT_5X8, FONT_6X9, FONT_9X15},
 		MonoTextStyleBuilder,
 	},
 	pixelcolor::{Rgb565},
@@ -21,7 +21,7 @@ use rppal::{
 use rusqlite::Connection;
 use serde_derive::Deserialize;
 //use ssd1306::{I2CDisplayInterface, Ssd1306, size::DisplaySize128x64, rotation::DisplayRotation, mode::DisplayConfig};
-use time::{format_description, OffsetDateTime, PrimitiveDateTime};
+use time::{format_description, OffsetDateTime, PrimitiveDateTime, Date};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
 
 #[derive(Deserialize)]
@@ -155,6 +155,10 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 		.build();
 	let mut text_style_6x9 = MonoTextStyleBuilder::new()
 		.font(&FONT_6X9)
+		.text_color(Rgb565::new(0xff, 0xff, 0xff))
+		.build();
+	let mut text_style_4x6 = MonoTextStyleBuilder::new()
+		.font(&FONT_4X6)
 		.text_color(Rgb565::new(0xff, 0xff, 0xff))
 		.build();
 	let text_style4 = MonoTextStyleBuilder::new()
@@ -359,13 +363,20 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 			let text = if event.4.len() > 19 { &event.4[0..19] } else { &event.4 };
 			let day = event.0 as usize;
 			let y = y + 64 + 9 * i as i32 + 5;
-			text_style_6x9.set_text_color(Some(Rgb565::new(0xff, 0xff, 0xff)));
-			Text::new(days[day].0, (x, y).into(), text_style_6x9)
-				.draw(&mut disp)
-				.unwrap();
-			Text::new(days[day].1, (x + 6, y).into(), text_style4)
-				.draw(&mut disp)
-				.unwrap();
+			if event.5 > today && event.5 - today > 7 {
+				let dt = Date::from_julian_day(event.5).unwrap();
+				Text::new(&format!("{}.{}.", dt.day(), dt.month() as u8), (0, y).into(), text_style_4x6)
+					.draw(&mut disp)
+					.unwrap();
+			} else {
+				text_style_6x9.set_text_color(Some(Rgb565::new(0xff, 0xff, 0xff)));
+				Text::new(days[day].0, (x, y).into(), text_style_6x9)
+					.draw(&mut disp)
+					.unwrap();
+				Text::new(days[day].1, (x + 6, y).into(), text_style4)
+					.draw(&mut disp)
+					.unwrap();
+			}
 			text_style_6x9.set_text_color(Some(colors[i]));
 			Text::new(text, (x + 14, y).into(), text_style_6x9)
 				.draw(&mut disp)
