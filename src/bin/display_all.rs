@@ -1,3 +1,5 @@
+#![feature(round_char_boundary)]
+
 use std::{fs, ops::Sub, time::Duration, fmt::Debug};
 
 use display_interface_spi::SPIInterfaceNoCS;
@@ -360,7 +362,7 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 	}
 	if args[3] == "events" {
 		for (i, event) in all_events.iter().take(7).enumerate() {
-			let text = if event.4.len() > 19 { &event.4[0..19] } else { &event.4 };
+			let text = if event.4.len() > 19 { &event.4[0..event.4.floor_char_boundary(19)] } else { &event.4 };
 			let day = event.0 as usize;
 			let y = y + 64 + 9 * i as i32 + 5;
 			if event.5 > today && event.5 - today > 7 {
