@@ -1,6 +1,6 @@
 with (import <nixpkgs> {});
 mkShell {
-  nativeBuildInputs = [
+  buildInputs = [
     pkgsCross.muslpi.stdenv.cc
     pkgsCross.muslpi.sqlite
   ];
