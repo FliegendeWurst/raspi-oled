@@ -22,4 +22,4 @@ https://www.waveshare.com/wiki/1.5inch_RGB_OLED_Module
 
 ![events](./images/events.png)
 
-(the second blue text is brighter on the OLED)
+(the blue text seen in the second image is bright enough on the real OLED display)
