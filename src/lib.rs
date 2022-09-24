@@ -3,7 +3,11 @@ use std::{
 	time::{self, Duration},
 };
 
-use embedded_graphics::{pixelcolor::Rgb565, draw_target::DrawTarget, prelude::{OriginDimensions, Size, RgbColor}};
+use embedded_graphics::{
+	draw_target::DrawTarget,
+	pixelcolor::Rgb565,
+	prelude::{OriginDimensions, RgbColor, Size},
+};
 use gpio_cdev::{EventType, Line, LineRequestFlags};
 use image::{ImageBuffer, Rgb};
 
@@ -14,7 +18,7 @@ pub struct FrameOutput {
 impl FrameOutput {
 	pub fn new(width: u32, height: u32) -> Self {
 		FrameOutput {
-			buffer: ImageBuffer::new(width, height)
+			buffer: ImageBuffer::new(width, height),
 		}
 	}
 }
@@ -29,10 +33,17 @@ impl DrawTarget for FrameOutput {
 		I: IntoIterator<Item = embedded_graphics::Pixel<Self::Color>>,
 	{
 		for pos in pixels {
-			if pos.0.x < 0 || pos.0.y < 0 || pos.0.x as u32 >= self.buffer.width() || pos.0.y as u32 >= self.buffer.height() {
+			if pos.0.x < 0
+				|| pos.0.y < 0 || pos.0.x as u32 >= self.buffer.width()
+				|| pos.0.y as u32 >= self.buffer.height()
+			{
 				continue;
 			}
-			self.buffer.put_pixel(pos.0.x as u32, pos.0.y as u32, Rgb([pos.1.r() << 3, pos.1.g() << 2, pos.1.b() << 3]));
+			self.buffer.put_pixel(
+				pos.0.x as u32,
+				pos.0.y as u32,
+				Rgb([pos.1.r() << 3, pos.1.g() << 2, pos.1.b() << 3]),
+			);
 		}
 		Ok(())
 	}
@@ -43,7 +54,6 @@ impl OriginDimensions for FrameOutput {
 		Size::new(self.buffer.width(), self.buffer.height())
 	}
 }
-
 
 fn read_events(line: &gpio_cdev::Line, timeout: std::time::Duration) -> Result<Vec<(u64, EventType)>, SensorError> {
 	let input = line.request(LineRequestFlags::INPUT, 0, "read-data")?;

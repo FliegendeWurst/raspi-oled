@@ -1,6 +1,6 @@
 #![feature(round_char_boundary)]
 
-use std::{fs, ops::Sub, time::Duration, fmt::Debug};
+use std::{fmt::Debug, fs, ops::Sub, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{
@@ -9,10 +9,10 @@ use embedded_graphics::{
 		ascii::{FONT_10X20, FONT_4X6, FONT_5X8, FONT_6X9, FONT_9X15},
 		MonoTextStyleBuilder,
 	},
-	pixelcolor::{Rgb565},
+	pixelcolor::Rgb565,
 	prelude::{Point, Primitive},
 	primitives::{PrimitiveStyleBuilder, Rectangle},
-	text::{Text, renderer::CharacterStyle},
+	text::{renderer::CharacterStyle, Text},
 	Drawable,
 };
 use raspi_oled::FrameOutput;
@@ -23,7 +23,7 @@ use rppal::{
 use rusqlite::Connection;
 use serde_derive::Deserialize;
 //use ssd1306::{I2CDisplayInterface, Ssd1306, size::DisplaySize128x64, rotation::DisplayRotation, mode::DisplayConfig};
-use time::{format_description, OffsetDateTime, PrimitiveDateTime, Date};
+use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
 
 #[derive(Deserialize)]
@@ -37,7 +37,7 @@ struct Events {
 struct Event {
 	name: String,
 	start_time: String,
-	end_time: Option<String>
+	end_time: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -54,7 +54,7 @@ enum Status {
 	Unknown,
 	Down,
 	Bad,
-	Good
+	Good,
 }
 
 impl Status {
@@ -124,8 +124,20 @@ fn main() {
 		let all: Vec<bool> = x.split(' ').map(|x| x.parse().unwrap()).collect();
 		[
 			if all[0] { Status::Good } else { Status::Bad },
-			if all[1] && all[2] { Status::Good } else if all[1] { Status::Down } else { Status::Bad },
-			if all[3] && all[4] { Status::Good } else if all[3] { Status::Down } else { Status::Bad }
+			if all[1] && all[2] {
+				Status::Good
+			} else if all[1] {
+				Status::Down
+			} else {
+				Status::Bad
+			},
+			if all[3] && all[4] {
+				Status::Good
+			} else if all[3] {
+				Status::Down
+			} else {
+				Status::Bad
+			},
 		]
 	} else {
 		[Status::Unknown, Status::Unknown, Status::Unknown]
@@ -138,12 +150,28 @@ fn main() {
 	let disp = ssd1351::display::display::Ssd1351::new(spii);
 	//let mut disp = FrameOutput::new(128, 128);
 
-	let mut disp = draw(disp, time, rh, temp, events, &args, global_min, global_max, vals, status);
+	let mut disp = draw(
+		disp, time, rh, temp, events, &args, global_min, global_max, vals, status,
+	);
 	let _ = disp.flush();
 	//disp.buffer.save("/tmp/x.png");
 }
 
-fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i64, temp: i64, events: Events, args: &[String], global_min: i32, global_max: i32, mut vals: Vec<(i32, i32)>, status: [Status; 3]) -> D where <D as DrawTarget>::Error: Debug {
+fn draw<D: DrawTarget<Color = Rgb565>>(
+	mut disp: D,
+	time: OffsetDateTime,
+	rh: i64,
+	temp: i64,
+	events: Events,
+	args: &[String],
+	global_min: i32,
+	global_max: i32,
+	mut vals: Vec<(i32, i32)>,
+	status: [Status; 3],
+) -> D
+where
+	<D as DrawTarget>::Error: Debug,
+{
 	let hour = time.hour();
 	let minute = time.minute();
 
@@ -275,7 +303,14 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 		while event_time.weekday().number_days_from_monday() as i32 != event.day {
 			event_time += Duration::from_secs(24 * 60 * 60);
 		}
-		all_events.push((event.day, event.hour, event.minute, event.duration, event.name, event_time.to_julian_day()));
+		all_events.push((
+			event.day,
+			event.hour,
+			event.minute,
+			event.duration,
+			event.name,
+			event_time.to_julian_day(),
+		));
 	}
 	let format = format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]").unwrap();
 	for event in events.events {
@@ -342,7 +377,11 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 					if now2 > event_start && now < event_end {
 						bits.push((i, hour, minute / 6, colors.get(event_idx).copied()));
 					}
-					if time_until_first.is_none() && (i > 0 || event.1 > time.hour() as i32 || (event.1 == time.hour() as i32 && event.2 >= time.minute() as i32)) {
+					if time_until_first.is_none()
+						&& (i > 0
+							|| event.1 > time.hour() as i32
+							|| (event.1 == time.hour() as i32 && event.2 >= time.minute() as i32))
+					{
 						time_until_first = Some(
 							((i * 24 + event.1) * 60 + event.2) * 60
 								- (time.hour() as i32 * 60 + time.minute() as i32) * 60,
@@ -356,20 +395,31 @@ fn draw<D: DrawTarget<Color = Rgb565>>(mut disp: D, time: OffsetDateTime, rh: i6
 		// calculate position
 		let x = x + 4 + d * 12 + m;
 		let y = y + 8 + h;
-		disp.fill_solid(&Rectangle::new((x, y).into(), (1, 1).into()), color.unwrap_or(Rgb565::new(0xff, 0xff, 0x10)))
-			.unwrap();
+		disp.fill_solid(
+			&Rectangle::new((x, y).into(), (1, 1).into()),
+			color.unwrap_or(Rgb565::new(0xff, 0xff, 0x10)),
+		)
+		.unwrap();
 		//Rectangle::new((x, y).into(), (1, 1).into()).into_styled(rect_style).draw(&mut disp).unwrap();
 	}
 	if args[3] == "events" {
 		for (i, event) in all_events.iter().take(7).enumerate() {
-			let text = if event.4.len() > 19 { &event.4[0..event.4.floor_char_boundary(19)] } else { &event.4 };
+			let text = if event.4.len() > 19 {
+				&event.4[0..event.4.floor_char_boundary(19)]
+			} else {
+				&event.4
+			};
 			let day = event.0 as usize;
 			let y = y + 64 + 9 * i as i32 + 5;
 			if event.5 > today && event.5 - today > 7 {
 				let dt = Date::from_julian_day(event.5).unwrap();
-				Text::new(&format!("{}.{}.", dt.day(), dt.month() as u8), (0, y).into(), text_style_4x6)
-					.draw(&mut disp)
-					.unwrap();
+				Text::new(
+					&format!("{}.{}.", dt.day(), dt.month() as u8),
+					(0, y).into(),
+					text_style_4x6,
+				)
+				.draw(&mut disp)
+				.unwrap();
 			} else {
 				text_style_6x9.set_text_color(Some(Rgb565::new(0xff, 0xff, 0xff)));
 				Text::new(days[day].0, (x, y).into(), text_style_6x9)
