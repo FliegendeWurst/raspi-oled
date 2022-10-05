@@ -1,6 +1,8 @@
-# raspi demo for OLED ssd1351 display
+# Raspberry Pi calendar/temperature monitoring station
 
-https://www.waveshare.com/wiki/1.5inch_RGB_OLED_Module
+For more details see https://fliegendewurst.github.io/raspberry-pi-temperature-monitoring.html
+
+The used OLED display is from [Waveshare](https://www.waveshare.com/wiki/1.5inch_RGB_OLED_Module)
 
 ## Quick start
 
