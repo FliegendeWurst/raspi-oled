@@ -31,6 +31,10 @@ fn main() {
 		.unwrap();
 	while temps.len() < 5 && attempts < 10 {
 		if let Ok((rh, temp)) = raspi_oled::am2302_reading(&line) {
+			// TODO: try out gpio_am2302_rs!
+			//if let Ok(reading) = gpio_am2302_rs::try_read(26) {
+			//let rh = reading.humidity as i64;
+			//let temp = (reading.temperature * 10.0) as i64;
 			if rh > 0 && temp < 500 {
 				rhs.push(rh);
 				temps.push(temp);
@@ -43,10 +47,13 @@ fn main() {
 		// median = hopefully no faulty readings
 		temps.sort();
 		rhs.sort();
+		let rh = rhs[rhs.len() / 2];
+		let temp = temps[temps.len() / 2];
+		println!("info: acquired {} readings (temps {:?}, rhs {:?}), using rh {} and temp {}", temps.len(), temps, rhs, rh, temp);
 		database
 			.execute(
 				"INSERT INTO sensor_readings (time, humidity, celsius) VALUES (?1, ?2, ?3)",
-				params![time.as_secs(), rhs[rhs.len() / 2], temps[temps.len() / 2]],
+				params![time.as_secs(), rh, temp],
 			)
 			.unwrap();
 	}

@@ -76,6 +76,7 @@ fn read_events(line: &gpio_cdev::Line, timeout: std::time::Duration) -> Result<V
 		}
 	}
 	if events.len() < 81 {
+		println!("error: only got {} events", events.len());
 		return Err(SensorError::Timeout);
 	}
 	Ok(events)
@@ -162,15 +163,14 @@ impl From<gpio_cdev::Error> for SensorError {
 }
 
 pub fn am2302_reading(line: &Line) -> Result<(u16, u16), SensorError> {
-	line.request(LineRequestFlags::OUTPUT, 1, "rust-am2302").unwrap();
+	let out = line.request(LineRequestFlags::OUTPUT, 1, "rust-am2302").unwrap();
+	out.set_value(1)?;
 	sleep(Duration::from_millis(500));
 	set_max_priority();
 	// set low for 20 ms
-	if let Err(e) = line.request(LineRequestFlags::OUTPUT, 0, "rust-am2302") {
-		set_normal_priority();
-		return Err(SensorError::Io(e));
-	}
+	out.set_value(0)?;
 	sleep(Duration::from_millis(3));
+	drop(out);
 
 	let events = read_events(&line, Duration::from_secs(1));
 	println!("{:?} {:?}", events, events.as_ref().map(|x| x.len()));
