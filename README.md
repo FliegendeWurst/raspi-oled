@@ -25,3 +25,16 @@ The used OLED display is from [Waveshare](https://www.waveshare.com/wiki/1.5inch
 ![events](./images/events.png)
 
 (the blue text seen in the second image is bright enough on the real OLED display)
+
+## License
+
+Copyright 🄯 2022-2023 FliegendeWurst
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+See [`LICENSE`]. Applies to all files except the ones listed below.
+
+`src/rpi.raw` is the Raspberry Pi logo. Raspberry Pi is a trademark of Raspberry Pi Ltd.
