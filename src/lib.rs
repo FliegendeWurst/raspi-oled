@@ -161,7 +161,7 @@ impl From<gpiocdev::Error> for SensorError {
 }
 
 pub fn am2302_reading() -> Result<(u16, u16), SensorError> {
-	let mut out = gpiocdev::Request::builder()
+	let out = gpiocdev::Request::builder()
 		.on_chip("/dev/gpiochip0")
 		.with_line(26)
 		.as_output(Value::Active)

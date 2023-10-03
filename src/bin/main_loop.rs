@@ -1,5 +1,4 @@
 use std::{
-	fmt::Debug,
 	thread::sleep_ms,
 	time::{Duration, Instant},
 };
@@ -12,18 +11,22 @@ use embedded_graphics::{
 	text::Text,
 	Drawable,
 };
-use gpiocdev::line::{Bias, EdgeDetection};
+use gpiocdev::line::{Bias, EdgeDetection, Value};
 use raspi_oled::FrameOutput;
 use rppal::{
-	gpio::Gpio,
+	gpio::{Gpio, OutputPin},
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
+use ssd1351::display::display::Ssd1351;
 use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
 static STAR: &'static [u8] = include_bytes!("../star.raw");
 static RPI: &'static [u8] = include_bytes!("../rpi.raw");
+
+static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
+static TIME_COLOR: Rgb565 = Rgb565::new(0b01_111, 0b011_111, 0b01_111);
 
 fn main() {
 	if rppal::system::DeviceInfo::new().is_ok() {
@@ -208,7 +211,7 @@ fn rpi_main() {
 
 	// Init SPI
 	let spii = SPIInterfaceNoCS::new(spi, dc);
-	let mut disp = ssd1351::display::display::Ssd1351::new(spii);
+	let mut disp = Ssd1351::new(spii);
 
 	// Reset & init
 	disp.reset(&mut rst, &mut Delay).unwrap();
@@ -217,14 +220,18 @@ fn rpi_main() {
 	main_loop(disp);
 }
 
-fn main_loop<D: DrawTarget<Color = Rgb565>>(mut disp: D)
-where
-	D::Error: Debug,
-{
+fn main_loop(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>) {
+	disp.clear(BLACK).unwrap();
 	let mut last_min = 0xff;
 	let mut last_button = Instant::now();
 
 	let mut menu = vec![];
+	let _high_outputs = gpiocdev::Request::builder()
+		.on_chip("/dev/gpiochip0")
+		.with_lines(&[23, 24])
+		.as_output(Value::Active)
+		.request()
+		.unwrap();
 	let lines = gpiocdev::Request::builder()
 		.on_chip("/dev/gpiochip0")
 		.with_line(19)
@@ -261,6 +268,7 @@ where
 					println!("unknown offset: {}", e.offset);
 				},
 			}
+			println!("menu: {menu:?}");
 		}
 		// clean up stale menu selection
 		if !menu.is_empty() && Instant::now().duration_since(last_button).as_secs() >= 10 {
@@ -275,6 +283,7 @@ where
 		if let Err(e) = loop_iter(&mut disp) {
 			println!("error: {:?}", e);
 		}
+		let _ = disp.flush(); // ignore bus write errors, they are harmless
 	}
 }
 
@@ -287,7 +296,7 @@ fn loop_iter<D: DrawTarget<Color = Rgb565>>(disp: &mut D) -> Result<(), D::Error
 fn display_clock<D: DrawTarget<Color = Rgb565>>(disp: &mut D, time: &OffsetDateTime) -> Result<(), D::Error> {
 	let text_style_clock = MonoTextStyleBuilder::new()
 		.font(&FONT_10X20)
-		.text_color(Rgb565::new(0xff, 0xff, 0xff))
+		.text_color(TIME_COLOR)
 		.build();
 	let hour = time.hour();
 	let minute = time.minute();
