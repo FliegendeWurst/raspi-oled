@@ -20,10 +20,8 @@ The used OLED display is from [Waveshare](https://www.waveshare.com/wiki/1.5inch
 
 ### Cross compile from NixOS x86_64
 
-Make sure to configure nixpkgs and [nur](https://github.com/nix-community/NUR) below.
-
 ```bash
-> nix-build -I nixpkgs=.../nixpkgs -I nur=.../nur-packages --arg crossSystem '(import <nixpkgs/lib>).systems.examples.muslpi' .../nur-packages -A raspi-oled-cross
+> nix-build --arg crossSystem '(import <nixpkgs/lib>).systems.examples.muslpi' -E 'with import <nixpkgs> {}; pkgsCross.muslpi.callPackage ./. { }'
 > mkdir /tmp/nixstore
 > nix copy --extra-experimental-features nix-command --extra-experimental-features flakes --no-check-sigs --to /tmp/nixstore $(readlink -f result)
 > rsync -r --links --info=progress --compress /tmp/nixstore/nix pi@himbeere-null:~/
