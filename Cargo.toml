@@ -11,7 +11,6 @@ embedded-graphics = "0.7.1"
 linux-embedded-hal = "0.3.0"
 embedded-hal = "0.2.5"
 libc = "0.2.98"
-gpio-cdev = "0.4"
 rusqlite = "0.27.0"
 time = { version = "0.3.9", features = ["parsing"] }
 time-tz = "1.0.1"
@@ -23,7 +22,15 @@ rppal = { version = "0.13.1", features = ["hal"] }
 ssd1351 = { git = "https://github.com/FliegendeWurst/ssd1351-rust" }
 display-interface-spi = "0.4.1"
 ureq = { version = "2.4.0", default-features = false }
+winit = { version = "0.28.7", optional = true }
+softbuffer = { version = "0.3.1", optional = true }
+rand_xoshiro = "0.6.0"
+gpiocdev = "0.6.0"
 #gpio-am2302-rs = { git = "https://github.com/FliegendeWurst/gpio-am2302-rs" }
+
+[features]
+pc = ["winit", "softbuffer"]
+default = [ "pc" ]
 
 [profile.release]
 codegen-units = 1

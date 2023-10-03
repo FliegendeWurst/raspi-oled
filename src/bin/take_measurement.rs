@@ -1,6 +1,5 @@
 use std::time::{Duration, SystemTime};
 
-use gpio_cdev::Chip;
 use rusqlite::{params, Connection};
 
 fn main() {
@@ -21,8 +20,6 @@ fn main() {
 		)
 		.unwrap();
 
-	let mut chip = Chip::new("/dev/gpiochip0").unwrap();
-	let line = chip.get_line(26).unwrap();
 	let mut attempts = 0;
 	let mut temps = vec![];
 	let mut rhs = vec![];
@@ -30,7 +27,7 @@ fn main() {
 		.duration_since(SystemTime::UNIX_EPOCH)
 		.unwrap();
 	while temps.len() < 5 && attempts < 10 {
-		if let Ok((rh, temp)) = raspi_oled::am2302_reading(&line) {
+		if let Ok((rh, temp)) = raspi_oled::am2302_reading() {
 			// TODO: try out gpio_am2302_rs!
 			//if let Ok(reading) = gpio_am2302_rs::try_read(26) {
 			//let rh = reading.humidity as i64;
@@ -49,7 +46,14 @@ fn main() {
 		rhs.sort();
 		let rh = rhs[rhs.len() / 2];
 		let temp = temps[temps.len() / 2];
-		println!("info: acquired {} readings (temps {:?}, rhs {:?}), using rh {} and temp {}", temps.len(), temps, rhs, rh, temp);
+		println!(
+			"info: acquired {} readings (temps {:?}, rhs {:?}), using rh {} and temp {}",
+			temps.len(),
+			temps,
+			rhs,
+			rh,
+			temp
+		);
 		database
 			.execute(
 				"INSERT INTO sensor_readings (time, humidity, celsius) VALUES (?1, ?2, ?3)",

@@ -8,7 +8,7 @@ use embedded_graphics::{
 	pixelcolor::Rgb565,
 	prelude::{OriginDimensions, RgbColor, Size},
 };
-use gpio_cdev::{EventType, Line, LineRequestFlags};
+use gpiocdev::line::{Bias, EdgeDetection, EdgeKind, Value};
 use image::{ImageBuffer, Rgb};
 
 pub struct FrameOutput {
@@ -55,24 +55,22 @@ impl OriginDimensions for FrameOutput {
 	}
 }
 
-fn read_events(line: &gpio_cdev::Line, timeout: std::time::Duration) -> Result<Vec<(u64, EventType)>, SensorError> {
-	let input = line.request(LineRequestFlags::INPUT, 0, "read-data")?;
+fn read_events(timeout: std::time::Duration) -> Result<Vec<(u64, EdgeKind)>, SensorError> {
+	let input = gpiocdev::Request::builder()
+		.on_chip("/dev/gpiochip0")
+		.with_line(26)
+		.as_input()
+		.with_edge_detection(EdgeDetection::BothEdges)
+		.with_bias(Bias::PullDown)
+		.request()?;
 
-	let mut last_state = 1;
 	let start = time::Instant::now();
 
 	let mut events = Vec::with_capacity(81);
 	while start.elapsed() < timeout && events.len() < 81 {
-		let new_state = input.get_value()?;
-		if new_state != last_state {
-			let timestamp = start.elapsed();
-			let event_type = if last_state < new_state {
-				EventType::RisingEdge
-			} else {
-				EventType::FallingEdge
-			};
-			events.push((timestamp.as_micros() as u64, event_type));
-			last_state = new_state;
+		if input.wait_edge_event(timeout)? {
+			let event = input.read_edge_event()?;
+			events.push((start.elapsed().as_micros() as u64, event.kind));
 		}
 	}
 	if events.len() < 81 {
@@ -82,15 +80,15 @@ fn read_events(line: &gpio_cdev::Line, timeout: std::time::Duration) -> Result<V
 	Ok(events)
 }
 
-fn events_to_data(events: Vec<(u64, EventType)>) -> Vec<u8> {
+fn events_to_data(events: Vec<(u64, EdgeKind)>) -> Vec<u8> {
 	events[1..]
 		.windows(2)
 		.map(|pair| {
 			let prev = pair.get(0).unwrap();
 			let next = pair.get(1).unwrap();
 			match next.1 {
-				EventType::FallingEdge => Some(next.0 - prev.0),
-				EventType::RisingEdge => None,
+				EdgeKind::Falling => Some(next.0 - prev.0),
+				EdgeKind::Rising => None,
 			}
 		})
 		.filter(|&d| d.is_some())
@@ -150,29 +148,33 @@ fn test_process_data() {
 
 #[derive(Debug)]
 pub enum SensorError {
-	Io(gpio_cdev::Error),
+	Io(gpiocdev::Error),
 	ChecksumMismatch,
 	HumidityTooHigh,
 	Timeout,
 }
 
-impl From<gpio_cdev::Error> for SensorError {
-	fn from(error: gpio_cdev::Error) -> Self {
+impl From<gpiocdev::Error> for SensorError {
+	fn from(error: gpiocdev::Error) -> Self {
 		SensorError::Io(error)
 	}
 }
 
-pub fn am2302_reading(line: &Line) -> Result<(u16, u16), SensorError> {
-	let out = line.request(LineRequestFlags::OUTPUT, 1, "rust-am2302").unwrap();
-	out.set_value(1)?;
+pub fn am2302_reading() -> Result<(u16, u16), SensorError> {
+	let mut out = gpiocdev::Request::builder()
+		.on_chip("/dev/gpiochip0")
+		.with_line(26)
+		.as_output(Value::Active)
+		.request()?;
+	out.set_value(26, Value::Active)?;
 	sleep(Duration::from_millis(500));
 	set_max_priority();
 	// set low for 20 ms
-	out.set_value(0)?;
+	out.set_value(26, Value::Inactive)?;
 	sleep(Duration::from_millis(3));
 	drop(out);
 
-	let events = read_events(&line, Duration::from_secs(1));
+	let events = read_events(Duration::from_secs(1));
 	println!("{:?} {:?}", events, events.as_ref().map(|x| x.len()));
 	set_normal_priority();
 	let events = events?;

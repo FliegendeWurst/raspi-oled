@@ -17,7 +17,6 @@ use embedded_graphics::{
 	Drawable,
 };
 use embedded_hal::digital::v2::OutputPin;
-use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 use image::{ImageBuffer, Rgb};
 use linux_embedded_hal::I2cdev;
 use rppal::{
@@ -85,18 +84,4 @@ fn main() {
 
 	disp.reset(&mut rst, &mut Delay).unwrap();
 	disp.turn_off().unwrap();
-}
-
-struct LineHandleWrapper(LineHandle);
-
-impl OutputPin for LineHandleWrapper {
-	type Error = gpio_cdev::Error;
-
-	fn set_low(&mut self) -> Result<(), Self::Error> {
-		self.0.set_value(0)
-	}
-
-	fn set_high(&mut self) -> Result<(), Self::Error> {
-		self.0.set_value(1)
-	}
 }
