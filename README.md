@@ -13,9 +13,26 @@ The used OLED display is from [Waveshare](https://www.waveshare.com/wiki/1.5inch
 > scp target/arm-unknown-linux-musleabihf/release/{display_all,display_off,refresh_json,take_measurement,status_check_example} 'pi@raspberrypi:~'
 > # on the Pi, create sensors.db and events.json
 > ./status_check_example > /run/user/1000/status.json
-> patchelf --set-interpreter /lib/ld-linux-armhf.so.3 display_all
+> patchelf --set-interpreter /lib/ld-musl-armhf.so.1 display_all
 > ./display_off on
 > ./display_all sensors.db events.json temps
+```
+
+### Cross compile from NixOS x86_64
+
+Make sure to configure nixpkgs and [nur](https://github.com/nix-community/NUR) below.
+
+```bash
+> nix-build -I nixpkgs=.../nixpkgs -I nur=.../nur-packages --arg crossSystem '(import <nixpkgs/lib>).systems.examples.muslpi' .../nur-packages -A raspi-oled-cross
+> mkdir /tmp/nixstore
+> nix copy --extra-experimental-features nix-command --extra-experimental-features flakes --no-check-sigs --to /tmp/nixstore $(readlink -f result)
+> rsync -r --links --info=progress --compress /tmp/nixstore/nix pi@himbeere-null:~/
+```
+
+On the Pi:
+```bash
+> sudo mv nix /
+> sudo patchelf --set-interpreter /lib/ld-musl-armhf.so.1 /nix/store/*-raspi-oled-*-infdev-*/bin/*
 ```
 
 ## Example
