@@ -111,12 +111,10 @@ fn pc_main() {
 				if Instant::now().duration_since(start) > Duration::from_millis(iters * 50) {
 					iters += 1;
 					//loop_iter(&mut disp).unwrap();
-					/*
 					let mut time = OffsetDateTime::now_utc().to_timezone(BERLIN);
 					//time += Duration::new(iters * 60, 0);
 					disp.clear(Rgb565::new(0, 0, 0)).unwrap();
 					display_clock(&mut disp, &time).unwrap();
-					*/
 					/*
 					let iters = iters % 300;
 					let (s, c) = (iters as f32 * 0.1).sin_cos();
@@ -144,6 +142,7 @@ fn pc_main() {
 						disp.clear(Rgb565::new(0, 0, 0)).unwrap();
 					}
 					*/
+					/*
 					for _ in 0..16 {
 						let x = (rng.next_u32() % 128) as usize;
 						let y = (rng.next_u32() % 128) as usize;
@@ -179,6 +178,7 @@ fn pc_main() {
 							p.draw_styled(&s, &mut disp).unwrap();
 						}
 					}
+					*/
 					buffer_dirty = true;
 				}
 
@@ -309,10 +309,16 @@ fn display_clock<D: DrawTarget<Color = Rgb565>>(disp: &mut D, time: &OffsetDateT
 		text_style_clock,
 	)
 	.draw(disp)?;
+	Text::new(
+		&":",
+		Point::new(64 - 3 + dx, 18 + unix_minutes % 100),
+		text_style_clock,
+	)
+	.draw(disp)?;
 	let minute = format!("{:02}", minute);
 	Text::new(
 		&minute,
-		Point::new(64 + 4 + dx, 20 + unix_minutes % 100),
+		Point::new(64 + 5 + dx, 20 + unix_minutes % 100),
 		text_style_clock,
 	)
 	.draw(disp)?;
