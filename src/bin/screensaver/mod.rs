@@ -1,29 +1,43 @@
+use std::cell::RefCell;
+
+use embedded_graphics::mono_font::ascii::FONT_10X20;
 use embedded_graphics::{
+	mono_font::MonoTextStyleBuilder,
 	pixelcolor::Rgb565,
 	prelude::{DrawTarget, Point, Size},
 	primitives::{PrimitiveStyleBuilder, Rectangle, StyledDrawable},
+	text::Text,
+	Drawable,
 };
 use rand_xoshiro::rand_core::RngCore;
+use time::{Duration, OffsetDateTime};
+use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
-use crate::Rng;
+use crate::{Draw, Rng};
 
-pub trait Screensaver {
+pub trait Screensaver<D: DrawTarget<Color = Rgb565>>: Draw<D> {
 	fn id(&self) -> &'static str;
-
-	fn draw<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, rng: &mut Rng) -> Result<(), D::Error>;
+	fn convert_draw(&self) -> Box<dyn Draw<D>>;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct SimpleScreensaver {
 	id: &'static str,
 	data: &'static [u8],
 }
 
-impl Screensaver for SimpleScreensaver {
+impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for SimpleScreensaver {
 	fn id(&self) -> &'static str {
 		self.id
 	}
 
-	fn draw<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, rng: &mut Rng) -> Result<(), D::Error> {
+	fn convert_draw(&self) -> Box<dyn Draw<D>> {
+		Box::new(*self)
+	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Draw<D> for SimpleScreensaver {
+	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
 		for _ in 0..512 {
 			let x = (rng.next_u32() % 128) as usize;
 			let y = (rng.next_u32() % 128) as usize;
@@ -45,7 +59,7 @@ impl Screensaver for SimpleScreensaver {
 				p.draw_styled(&s, disp)?;
 			}
 		}
-		Ok(())
+		Ok(true)
 	}
 }
 
@@ -58,6 +72,70 @@ impl SimpleScreensaver {
 	}
 }
 
+static TIME_COLOR: Rgb565 = Rgb565::new(0b01_111, 0b011_111, 0b01_111);
+
+#[derive(Debug, Clone)]
+pub struct TimeDisplay {
+	last_min: RefCell<OffsetDateTime>,
+}
+
+impl TimeDisplay {
+	pub fn new() -> Self {
+		TimeDisplay {
+			last_min: RefCell::new(OffsetDateTime::now_utc().checked_sub(Duration::minutes(2)).unwrap()),
+		}
+	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for TimeDisplay {
+	fn id(&self) -> &'static str {
+		"time"
+	}
+
+	fn convert_draw(&self) -> Box<dyn Draw<D>> {
+		Box::new(self.clone())
+	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Draw<D> for TimeDisplay {
+	fn draw(&self, disp: &mut D, _rng: &mut Rng) -> Result<bool, D::Error> {
+		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
+		if time.minute() == self.last_min.borrow().minute() {
+			return Ok(false);
+		}
+		*self.last_min.borrow_mut() = time;
+		disp.clear(Rgb565::new(0, 0, 0))?;
+		let text_style_clock = MonoTextStyleBuilder::new()
+			.font(&FONT_10X20)
+			.text_color(TIME_COLOR)
+			.build();
+		let hour = time.hour();
+		let minute = time.minute();
+		let unix_minutes = minute as i32 * 5 / 3; // (time.unix_timestamp() / 60) as i32;
+		let dx = ((hour % 3) as i32 - 1) * 40 - 2;
+		let hour = format!("{:02}", hour);
+		Text::new(
+			&hour,
+			Point::new(64 - 20 + dx, 20 + unix_minutes % 100),
+			text_style_clock,
+		)
+		.draw(disp)?;
+		Text::new(&":", Point::new(64 - 3 + dx, 18 + unix_minutes % 100), text_style_clock).draw(disp)?;
+		let minute = format!("{:02}", minute);
+		Text::new(
+			&minute,
+			Point::new(64 + 5 + dx, 20 + unix_minutes % 100),
+			text_style_clock,
+		)
+		.draw(disp)?;
+		Ok(true)
+	}
+}
+
 pub static STAR: SimpleScreensaver = SimpleScreensaver::new("star", include_bytes!("./star.raw"));
 pub static RPI: SimpleScreensaver = SimpleScreensaver::new("rpi", include_bytes!("./rpi.raw"));
 pub static DUOLINGO: SimpleScreensaver = SimpleScreensaver::new("duolingo", include_bytes!("./duolingo.raw"));
+
+pub fn screensavers<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Screensaver<D>>> {
+	vec![Box::new(STAR), Box::new(RPI), Box::new(DUOLINGO)]
+}

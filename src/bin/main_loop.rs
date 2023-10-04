@@ -1,24 +1,21 @@
 use std::{
-	thread::sleep_ms,
+	cell::RefCell,
 	time::{Duration, Instant},
 };
 
+use action::Action;
 use display_interface_spi::SPIInterfaceNoCS;
-use embedded_graphics::{
-	mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
-	pixelcolor::Rgb565,
-	prelude::{DrawTarget, Point},
-	text::Text,
-	Drawable,
-};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget, Drawable};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
-use rand_xoshiro::Xoroshiro128StarStar;
+use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
 use raspi_oled::FrameOutput;
 use rppal::{
 	gpio::{Gpio, OutputPin},
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
+use schedule::Schedule;
+use screensaver::{Screensaver, TimeDisplay};
 use ssd1351::display::display::Ssd1351;
 use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
@@ -38,6 +35,54 @@ fn main() {
 		rpi_main();
 	} else {
 		pc_main();
+	}
+}
+
+pub trait Context {
+	fn do_action(&self, action: Action);
+}
+
+struct ContextDefault {
+	screensavers: Vec<Box<dyn Screensaver<Oled>>>,
+	scheduled: Vec<Box<dyn Schedule>>,
+	active: RefCell<Vec<Box<dyn Draw<Oled>>>>,
+}
+
+impl ContextDefault {
+	fn new() -> Self {
+		ContextDefault {
+			screensavers: screensaver::screensavers(),
+			scheduled: schedule::reminders(),
+			active: RefCell::new(vec![Box::new(TimeDisplay::new())]),
+		}
+	}
+
+	fn loop_iter(&mut self, disp: &mut Oled, rng: &mut Rng) -> bool {
+		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
+		// check schedules
+		for s in &self.scheduled {
+			s.check_and_do(&*self, time);
+		}
+		let active = self.active.borrow();
+		if active.is_empty() {
+			return false;
+		}
+		let a = active.last().unwrap();
+		a.draw(disp, rng).unwrap_or(true)
+	}
+}
+
+impl Context for ContextDefault {
+	fn do_action(&self, action: Action) {
+		match action {
+			Action::Screensaver(id) => {
+				for s in &self.screensavers {
+					if s.id() == id {
+						self.active.borrow_mut().push(s.convert_draw());
+					}
+				}
+			},
+		}
 	}
 }
 
@@ -209,6 +254,10 @@ fn pc_main() {
 	});
 }
 
+pub trait Draw<D: DrawTarget<Color = Rgb565>> {
+	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
+}
+
 fn rpi_main() {
 	let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 	let gpio = Gpio::new().unwrap();
@@ -219,7 +268,7 @@ fn rpi_main() {
 	let spii = SPIInterfaceNoCS::new(spi, dc);
 	let mut disp = Ssd1351::new(spii);
 
-	// Reset & init
+	// Reset & init display
 	disp.reset(&mut rst, &mut Delay).unwrap();
 	disp.turn_on().unwrap();
 
@@ -228,10 +277,13 @@ fn rpi_main() {
 
 fn main_loop(mut disp: Oled) {
 	disp.clear(BLACK).unwrap();
-	let mut last_min = 0xff;
+
+	let mut ctx = ContextDefault::new();
+	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 	let mut last_button = Instant::now();
 
 	let mut menu = vec![];
+	// high pins for buttons
 	let _high_outputs = gpiocdev::Request::builder()
 		.on_chip("/dev/gpiochip0")
 		.with_lines(&[23, 24])
@@ -280,48 +332,10 @@ fn main_loop(mut disp: Oled) {
 		if !menu.is_empty() && Instant::now().duration_since(last_button).as_secs() >= 10 {
 			menu.clear();
 		}
-		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
-		if time.minute() == last_min {
-			sleep_ms(1000);
-			continue;
+		// check schedules
+		let dirty = ctx.loop_iter(&mut disp, &mut rng);
+		if dirty {
+			let _ = disp.flush(); // ignore bus write errors, they are harmless
 		}
-		last_min = time.minute();
-		if let Err(e) = loop_iter(&mut disp) {
-			println!("error: {:?}", e);
-		}
-		let _ = disp.flush(); // ignore bus write errors, they are harmless
 	}
-}
-
-fn loop_iter<D: DrawTarget<Color = Rgb565>>(disp: &mut D) -> Result<(), D::Error> {
-	disp.clear(Rgb565::new(0, 0, 0))?;
-	let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
-	display_clock(disp, &time)
-}
-
-fn display_clock<D: DrawTarget<Color = Rgb565>>(disp: &mut D, time: &OffsetDateTime) -> Result<(), D::Error> {
-	let text_style_clock = MonoTextStyleBuilder::new()
-		.font(&FONT_10X20)
-		.text_color(TIME_COLOR)
-		.build();
-	let hour = time.hour();
-	let minute = time.minute();
-	let unix_minutes = minute as i32 * 5 / 3; // (time.unix_timestamp() / 60) as i32;
-	let dx = ((hour % 3) as i32 - 1) * 40 - 2;
-	let hour = format!("{:02}", hour);
-	Text::new(
-		&hour,
-		Point::new(64 - 20 + dx, 20 + unix_minutes % 100),
-		text_style_clock,
-	)
-	.draw(disp)?;
-	Text::new(&":", Point::new(64 - 3 + dx, 18 + unix_minutes % 100), text_style_clock).draw(disp)?;
-	let minute = format!("{:02}", minute);
-	Text::new(
-		&minute,
-		Point::new(64 + 5 + dx, 20 + unix_minutes % 100),
-		text_style_clock,
-	)
-	.draw(disp)?;
-	Ok(())
 }
