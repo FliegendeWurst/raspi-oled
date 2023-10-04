@@ -82,7 +82,12 @@ pub struct TimeDisplay {
 impl TimeDisplay {
 	pub fn new() -> Self {
 		TimeDisplay {
-			last_min: RefCell::new(OffsetDateTime::now_utc().checked_sub(Duration::minutes(2)).unwrap()),
+			last_min: RefCell::new(
+				OffsetDateTime::now_utc()
+					.to_timezone(BERLIN)
+					.checked_sub(Duration::minutes(2))
+					.unwrap(),
+			),
 		}
 	}
 }

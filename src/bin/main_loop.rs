@@ -28,7 +28,6 @@ pub type Oled = Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>;
 pub type Rng = Xoroshiro128StarStar;
 
 static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
-static TIME_COLOR: Rgb565 = Rgb565::new(0b01_111, 0b011_111, 0b01_111);
 
 fn main() {
 	if rppal::system::DeviceInfo::new().is_ok() {
@@ -42,13 +41,13 @@ pub trait Context {
 	fn do_action(&self, action: Action);
 }
 
-struct ContextDefault {
-	screensavers: Vec<Box<dyn Screensaver<Oled>>>,
+struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
+	screensavers: Vec<Box<dyn Screensaver<D>>>,
 	scheduled: Vec<Box<dyn Schedule>>,
-	active: RefCell<Vec<Box<dyn Draw<Oled>>>>,
+	active: RefCell<Vec<Box<dyn Draw<D>>>>,
 }
 
-impl ContextDefault {
+impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 	fn new() -> Self {
 		ContextDefault {
 			screensavers: screensaver::screensavers(),
@@ -57,7 +56,7 @@ impl ContextDefault {
 		}
 	}
 
-	fn loop_iter(&mut self, disp: &mut Oled, rng: &mut Rng) -> bool {
+	fn loop_iter(&mut self, disp: &mut D, rng: &mut Rng) -> bool {
 		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
 		// check schedules
 		for s in &self.scheduled {
@@ -72,7 +71,7 @@ impl ContextDefault {
 	}
 }
 
-impl Context for ContextDefault {
+impl<D: DrawTarget<Color = Rgb565>> Context for ContextDefault<D> {
 	fn do_action(&self, action: Action) {
 		match action {
 			Action::Screensaver(id) => {
@@ -93,7 +92,6 @@ fn pc_main() {}
 fn pc_main() {
 	use std::num::NonZeroU32;
 
-	use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
 	use winit::{
 		dpi::LogicalSize,
 		event::{Event, WindowEvent},
@@ -114,9 +112,10 @@ fn pc_main() {
 	let start = Instant::now();
 	let mut iters = 0;
 	let mut disp = FrameOutput::new(128, 128);
-	//disp.buffer.save("/tmp/x.png").unwrap();
-	let mut rng = Xoroshiro128StarStar::seed_from_u64(0);
 	let mut buffer_dirty = true;
+
+	let mut ctx = ContextDefault::new();
+	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 
 	event_loop.run(move |event, _, control_flow| {
 		// ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
@@ -158,6 +157,7 @@ fn pc_main() {
 				// redraw
 				if Instant::now().duration_since(start) > Duration::from_millis(iters * 1000) {
 					iters += 1;
+					buffer_dirty = ctx.loop_iter(&mut disp, &mut rng);
 					//loop_iter(&mut disp).unwrap();
 					/*
 					let mut time = OffsetDateTime::now_utc().to_timezone(BERLIN);
@@ -165,7 +165,7 @@ fn pc_main() {
 					disp.clear(Rgb565::new(0, 0, 0)).unwrap();
 					display_clock(&mut disp, &time).unwrap();
 					*/
-					DUOLINGO.draw(&mut disp, &mut rng).unwrap();
+					//DUOLINGO.draw(&mut disp, &mut rng).unwrap();
 					/*
 					let iters = iters % 300;
 					let (s, c) = (iters as f32 * 0.1).sin_cos();
@@ -230,7 +230,6 @@ fn pc_main() {
 						}
 					}
 					*/
-					buffer_dirty = true;
 				}
 
 				let mut buffer = surface.buffer_mut().unwrap();
@@ -332,7 +331,7 @@ fn main_loop(mut disp: Oled) {
 		if !menu.is_empty() && Instant::now().duration_since(last_button).as_secs() >= 10 {
 			menu.clear();
 		}
-		// check schedules
+		// run context loop
 		let dirty = ctx.loop_iter(&mut disp, &mut rng);
 		if dirty {
 			let _ = disp.flush(); // ignore bus write errors, they are harmless
