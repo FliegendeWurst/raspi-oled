@@ -1,5 +1,6 @@
 use std::{
 	cell::RefCell,
+	thread,
 	time::{Duration, Instant},
 };
 
@@ -8,7 +9,6 @@ use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget, Drawable};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
-use raspi_oled::FrameOutput;
 use rppal::{
 	gpio::{Gpio, OutputPin},
 	hal::Delay,
@@ -100,6 +100,7 @@ fn pc_main() {
 	};
 
 	use crate::screensaver::{Screensaver, DUOLINGO};
+	use raspi_oled::FrameOutput;
 
 	let event_loop = EventLoop::new();
 	let window = WindowBuilder::new()
@@ -317,6 +318,7 @@ fn main_loop(mut disp: Oled) {
 				},
 				6 => {
 					menu.push(2);
+					ctx.do_action(Action::Screensaver("rpi"));
 				},
 				5 => {
 					menu.push(3);
@@ -325,7 +327,7 @@ fn main_loop(mut disp: Oled) {
 					println!("unknown offset: {}", e.offset);
 				},
 			}
-			println!("menu: {menu:?}");
+			//println!("menu: {menu:?}");
 		}
 		// clean up stale menu selection
 		if !menu.is_empty() && Instant::now().duration_since(last_button).as_secs() >= 10 {
@@ -336,5 +338,6 @@ fn main_loop(mut disp: Oled) {
 		if dirty {
 			let _ = disp.flush(); // ignore bus write errors, they are harmless
 		}
+		thread::sleep(Duration::from_millis(1000));
 	}
 }

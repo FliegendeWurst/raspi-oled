@@ -14,12 +14,12 @@ libc = "0.2.98"
 rusqlite = "0.27.0"
 time = { version = "0.3.9", features = ["parsing"] }
 time-tz = "1.0.1"
-image = "0.24.1"
+image = { version = "0.24.1", optional = true }
 serde_json = "1.0.79"
 serde_derive = "1.0.136"
 serde = "1.0.136"
 rppal = { version = "0.13.1", features = ["hal"] }
-ssd1351 = { git = "https://github.com/FliegendeWurst/ssd1351-rust" }
+ssd1351 = { git = "https://github.com/FliegendeWurst/ssd1351-rust", rev = "ce3194474355f4433ffe2a63484f263071a0d54e" }
 display-interface-spi = "0.4.1"
 ureq = { version = "2.4.0", default-features = false }
 winit = { version = "0.28.7", optional = true }
@@ -29,7 +29,7 @@ gpiocdev = "0.6.0"
 #gpio-am2302-rs = { git = "https://github.com/FliegendeWurst/gpio-am2302-rs" }
 
 [features]
-pc = ["winit", "softbuffer"]
+pc = ["winit", "softbuffer", "image"]
 default = [ "pc" ]
 
 [profile.release]

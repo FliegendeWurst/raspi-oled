@@ -9,12 +9,15 @@ use embedded_graphics::{
 	prelude::{OriginDimensions, RgbColor, Size},
 };
 use gpiocdev::line::{Bias, EdgeDetection, EdgeKind, Value};
+#[cfg(feature = "pc")]
 use image::{ImageBuffer, Rgb};
 
+#[cfg(feature = "pc")]
 pub struct FrameOutput {
 	pub buffer: ImageBuffer<Rgb<u8>, Vec<u8>>,
 }
 
+#[cfg(feature = "pc")]
 impl FrameOutput {
 	pub fn new(width: u32, height: u32) -> Self {
 		FrameOutput {
@@ -23,6 +26,7 @@ impl FrameOutput {
 	}
 }
 
+#[cfg(feature = "pc")]
 impl DrawTarget for FrameOutput {
 	type Color = Rgb565;
 
@@ -49,6 +53,7 @@ impl DrawTarget for FrameOutput {
 	}
 }
 
+#[cfg(feature = "pc")]
 impl OriginDimensions for FrameOutput {
 	fn size(&self) -> Size {
 		Size::new(self.buffer.width(), self.buffer.height())
