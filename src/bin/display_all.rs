@@ -15,7 +15,7 @@ use embedded_graphics::{
 	text::{renderer::CharacterStyle, Text},
 	Drawable,
 };
-use raspi_oled::FrameOutput;
+
 use rppal::{
 	gpio::Gpio,
 	spi::{Bus, Mode, SlaveSelect, Spi},
@@ -187,7 +187,7 @@ where
 		.font(&FONT_6X9)
 		.text_color(Rgb565::new(0xff, 0xff, 0xff))
 		.build();
-	let mut text_style_4x6 = MonoTextStyleBuilder::new()
+	let text_style_4x6 = MonoTextStyleBuilder::new()
 		.font(&FONT_4X6)
 		.text_color(Rgb565::new(0xff, 0xff, 0xff))
 		.build();

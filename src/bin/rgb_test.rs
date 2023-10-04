@@ -1,31 +1,24 @@
 use std::{
-	fs, thread,
+	thread,
 	time::{Duration, Instant},
 };
 
 use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{
 	draw_target::DrawTarget,
-	mono_font::{
-		ascii::{FONT_10X20, FONT_5X8, FONT_6X9, FONT_9X15},
-		MonoTextStyleBuilder,
-	},
-	pixelcolor::{BinaryColor, Rgb565},
-	prelude::{OriginDimensions, Point, Primitive, Size},
-	primitives::{PrimitiveStyleBuilder, Rectangle},
+	mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
+	pixelcolor::Rgb565,
 	text::Text,
 	Drawable,
 };
-use embedded_hal::digital::v2::OutputPin;
-use image::{ImageBuffer, Rgb};
-use linux_embedded_hal::I2cdev;
+
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
 //use ssd1351::{properties::DisplaySize, mode::{GraphicsMode, displaymode::DisplayModeTrait}};
-use time::{format_description, OffsetDateTime, PrimitiveDateTime};
+
 //use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
 
 fn main() {

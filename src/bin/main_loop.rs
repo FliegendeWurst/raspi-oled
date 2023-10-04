@@ -7,11 +7,12 @@ use display_interface_spi::SPIInterfaceNoCS;
 use embedded_graphics::{
 	mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
 	pixelcolor::Rgb565,
-	prelude::{DrawTarget, Point, Size},
+	prelude::{DrawTarget, Point},
 	text::Text,
 	Drawable,
 };
 use gpiocdev::line::{Bias, EdgeDetection, Value};
+use rand_xoshiro::Xoroshiro128StarStar;
 use raspi_oled::FrameOutput;
 use rppal::{
 	gpio::{Gpio, OutputPin},
@@ -22,8 +23,12 @@ use ssd1351::display::display::Ssd1351;
 use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
-static STAR: &'static [u8] = include_bytes!("../star.raw");
-static RPI: &'static [u8] = include_bytes!("../rpi.raw");
+mod action;
+mod schedule;
+mod screensaver;
+
+pub type Oled = Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>;
+pub type Rng = Xoroshiro128StarStar;
 
 static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
 static TIME_COLOR: Rgb565 = Rgb565::new(0b01_111, 0b011_111, 0b01_111);
@@ -43,17 +48,15 @@ fn pc_main() {}
 fn pc_main() {
 	use std::num::NonZeroU32;
 
-	use embedded_graphics::primitives::{PrimitiveStyleBuilder, Rectangle, StyledDrawable};
-	use rand_xoshiro::{
-		rand_core::{RngCore, SeedableRng},
-		Xoroshiro128StarStar,
-	};
+	use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
 	use winit::{
 		dpi::LogicalSize,
 		event::{Event, WindowEvent},
 		event_loop::EventLoop,
 		window::WindowBuilder,
 	};
+
+	use crate::screensaver::{Screensaver, DUOLINGO};
 
 	let event_loop = EventLoop::new();
 	let window = WindowBuilder::new()
@@ -108,13 +111,16 @@ fn pc_main() {
 					.unwrap();
 
 				// redraw
-				if Instant::now().duration_since(start) > Duration::from_millis(iters * 50) {
+				if Instant::now().duration_since(start) > Duration::from_millis(iters * 1000) {
 					iters += 1;
 					//loop_iter(&mut disp).unwrap();
+					/*
 					let mut time = OffsetDateTime::now_utc().to_timezone(BERLIN);
 					//time += Duration::new(iters * 60, 0);
 					disp.clear(Rgb565::new(0, 0, 0)).unwrap();
 					display_clock(&mut disp, &time).unwrap();
+					*/
+					DUOLINGO.draw(&mut disp, &mut rng).unwrap();
 					/*
 					let iters = iters % 300;
 					let (s, c) = (iters as f32 * 0.1).sin_cos();
@@ -220,7 +226,7 @@ fn rpi_main() {
 	main_loop(disp);
 }
 
-fn main_loop(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>) {
+fn main_loop(mut disp: Oled) {
 	disp.clear(BLACK).unwrap();
 	let mut last_min = 0xff;
 	let mut last_button = Instant::now();
@@ -309,12 +315,7 @@ fn display_clock<D: DrawTarget<Color = Rgb565>>(disp: &mut D, time: &OffsetDateT
 		text_style_clock,
 	)
 	.draw(disp)?;
-	Text::new(
-		&":",
-		Point::new(64 - 3 + dx, 18 + unix_minutes % 100),
-		text_style_clock,
-	)
-	.draw(disp)?;
+	Text::new(&":", Point::new(64 - 3 + dx, 18 + unix_minutes % 100), text_style_clock).draw(disp)?;
 	let minute = format!("{:02}", minute);
 	Text::new(
 		&minute,

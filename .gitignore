@@ -4,3 +4,8 @@ events_weekly.json
 events.json
 sensors.db
 /result
+/box.svg
+/mockup.png
+/*.aes
+/*.py
+/*.txt
