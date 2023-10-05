@@ -6,12 +6,12 @@ use crate::{action::Action, Context};
 /// Guaranteed to be checked at least once every minute.
 pub trait Schedule {
 	fn check_and_do(&self, ctx: &dyn Context, time: OffsetDateTime) {
-		if self.check(time) {
+		if self.check(ctx, time) {
 			self.execute(ctx, time);
 		}
 	}
 
-	fn check(&self, time: OffsetDateTime) -> bool;
+	fn check(&self, ctx: &dyn Context, time: OffsetDateTime) -> bool;
 	fn execute(&self, ctx: &dyn Context, time: OffsetDateTime);
 }
 
@@ -23,8 +23,8 @@ pub struct Reminder {
 }
 
 impl Schedule for Reminder {
-	fn check(&self, time: OffsetDateTime) -> bool {
-		time.hour() == self.hour && time.minute() == self.minute
+	fn check(&self, ctx: &dyn Context, time: OffsetDateTime) -> bool {
+		time.hour() == self.hour && time.minute() == self.minute && ctx.active_count() == 1
 	}
 
 	fn execute(&self, ctx: &dyn Context, _time: OffsetDateTime) {

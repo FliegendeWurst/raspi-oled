@@ -41,6 +41,8 @@ fn main() {
 
 pub trait Context {
 	fn do_action(&self, action: Action);
+
+	fn active_count(&self) -> usize;
 }
 
 struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
@@ -101,6 +103,10 @@ impl<D: DrawTarget<Color = Rgb565>> Context for ContextDefault<D> {
 			},
 		}
 	}
+
+	fn active_count(&self) -> usize {
+		self.active.borrow().len()
+	}
 }
 
 #[cfg(not(feature = "pc"))]
@@ -117,7 +123,6 @@ fn pc_main() {
 		window::WindowBuilder,
 	};
 
-	use crate::screensaver::{Screensaver, DUOLINGO};
 	use raspi_oled::FrameOutput;
 
 	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
