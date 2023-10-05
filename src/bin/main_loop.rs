@@ -1,3 +1,5 @@
+#![feature(array_windows)]
+
 use std::{
 	cell::RefCell,
 	thread,
@@ -67,7 +69,21 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 			return false;
 		}
 		let a = active.last().unwrap();
-		a.draw(disp, rng).unwrap_or(true)
+		if !a.expired() {
+			return a.draw(disp, rng).unwrap_or(true);
+		}
+		drop(active);
+		self.active.borrow_mut().pop();
+		self.loop_iter(disp, rng)
+	}
+
+	fn pop_action_and_clear(&mut self, disp: &mut D) -> Result<(), D::Error> {
+		let active = self.active.get_mut();
+		if active.len() > 1 {
+			active.pop();
+			disp.clear(BLACK)?;
+		}
+		Ok(())
 	}
 }
 
@@ -78,8 +94,10 @@ impl<D: DrawTarget<Color = Rgb565>> Context for ContextDefault<D> {
 				for s in &self.screensavers {
 					if s.id() == id {
 						self.active.borrow_mut().push(s.convert_draw());
+						return;
 					}
 				}
+				println!("warning: screensaver not found");
 			},
 		}
 	}
@@ -90,7 +108,7 @@ fn pc_main() {}
 
 #[cfg(feature = "pc")]
 fn pc_main() {
-	use std::num::NonZeroU32;
+	use std::{env, num::NonZeroU32};
 
 	use winit::{
 		dpi::LogicalSize,
@@ -101,6 +119,16 @@ fn pc_main() {
 
 	use crate::screensaver::{Screensaver, DUOLINGO};
 	use raspi_oled::FrameOutput;
+
+	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
+	for [key, val] in args.array_windows() {
+		match key.as_str() {
+			"--speed" => {
+				screensaver::SPEED.store(val.parse().unwrap(), std::sync::atomic::Ordering::Relaxed);
+			},
+			_ => {},
+		}
+	}
 
 	let event_loop = EventLoop::new();
 	let window = WindowBuilder::new()
@@ -116,6 +144,7 @@ fn pc_main() {
 	let mut buffer_dirty = true;
 
 	let mut ctx = ContextDefault::new();
+	ctx.do_action(Action::Screensaver("plate"));
 	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 
 	event_loop.run(move |event, _, control_flow| {
@@ -156,81 +185,9 @@ fn pc_main() {
 					.unwrap();
 
 				// redraw
-				if Instant::now().duration_since(start) > Duration::from_millis(iters * 1000) {
+				if Instant::now().duration_since(start) > Duration::from_millis(iters * 66) {
 					iters += 1;
 					buffer_dirty = ctx.loop_iter(&mut disp, &mut rng);
-					//loop_iter(&mut disp).unwrap();
-					/*
-					let mut time = OffsetDateTime::now_utc().to_timezone(BERLIN);
-					//time += Duration::new(iters * 60, 0);
-					disp.clear(Rgb565::new(0, 0, 0)).unwrap();
-					display_clock(&mut disp, &time).unwrap();
-					*/
-					//DUOLINGO.draw(&mut disp, &mut rng).unwrap();
-					/*
-					let iters = iters % 300;
-					let (s, c) = (iters as f32 * 0.1).sin_cos();
-					let (mut x, mut y) = (s * iters as f32 * 0.005, c * iters as f32 * 0.005);
-					x *= 64.;
-					y *= 64.;
-					x += 64.;
-					y += 64.;
-					let variation = iters as u32 / 16 + 1;
-					for _ in 0..16 {
-						let dx = (rng.next_u32() % variation) as i32 - variation as i32 / 2;
-						let dy = (rng.next_u32() % variation) as i32 - variation as i32 / 2;
-						let color = rng.next_u32();
-						let p = Rectangle::new(Point::new(x as i32 + dx, y as i32 + dy), Size::new(1, 1));
-						let s = PrimitiveStyleBuilder::new()
-							.fill_color(Rgb565::new(
-								color as u8 & 0b11111,
-								((color >> 8) & 0b111111) as u8,
-								((color >> 16) & 0b111111) as u8,
-							))
-							.build();
-						p.draw_styled(&s, &mut disp).unwrap();
-					}
-					if iters % 300 == 0 {
-						disp.clear(Rgb565::new(0, 0, 0)).unwrap();
-					}
-					*/
-					/*
-					for _ in 0..16 {
-						let x = (rng.next_u32() % 128) as usize;
-						let y = (rng.next_u32() % 128) as usize;
-						let dx = (rng.next_u32() % 8) as i32 - 4;
-						let dy = (rng.next_u32() % 8) as i32 - 4;
-						let red = STAR[y * 128 * 3 + x * 3];
-						let green = STAR[y * 128 * 3 + x * 3 + 1];
-						if red == 0xff {
-							let color = rng.next_u32();
-							let r;
-							let g;
-							let b;
-							// star
-							r = (color as u8 & 0b11111).saturating_mul(2);
-							g = (((color >> 8) & 0b111111) as u8).saturating_mul(2);
-							b = ((color >> 16) & 0b111111) as u8 / 3;
-							// rpi
-							/*
-							if red > green {
-								r = (color as u8 & 0b11111).saturating_mul(2);
-								g = ((color >> 8) & 0b111111) as u8 / 3;
-								b = ((color >> 16) & 0b111111) as u8 / 3;
-							} else {
-								r = (color as u8 & 0b11111) / 2;
-								g = (((color >> 8) & 0b111111) as u8).saturating_mul(2);
-								b = ((color >> 16) & 0b111111) as u8 / 3;
-							}
-							*/
-							let p = Rectangle::new(Point::new(x as i32 + dx, y as i32 + dy), Size::new(1, 1));
-							let s = PrimitiveStyleBuilder::new()
-								.fill_color(Rgb565::new(r as u8, g as u8, b as u8))
-								.build();
-							p.draw_styled(&s, &mut disp).unwrap();
-						}
-					}
-					*/
 				}
 
 				let mut buffer = surface.buffer_mut().unwrap();
@@ -256,6 +213,9 @@ fn pc_main() {
 
 pub trait Draw<D: DrawTarget<Color = Rgb565>> {
 	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
+	fn expired(&self) -> bool {
+		false
+	}
 }
 
 fn rpi_main() {
@@ -318,7 +278,6 @@ fn main_loop(mut disp: Oled) {
 				},
 				6 => {
 					menu.push(2);
-					ctx.do_action(Action::Screensaver("rpi"));
 				},
 				5 => {
 					menu.push(3);
@@ -326,6 +285,15 @@ fn main_loop(mut disp: Oled) {
 				_ => {
 					println!("unknown offset: {}", e.offset);
 				},
+			}
+			match &*menu {
+				[2] => {
+					let _ = ctx.pop_action_and_clear(&mut disp);
+				},
+				[3] => {
+					ctx.do_action(Action::Screensaver("rpi"));
+				},
+				_ => {},
 			}
 			//println!("menu: {menu:?}");
 		}
@@ -338,6 +306,6 @@ fn main_loop(mut disp: Oled) {
 		if dirty {
 			let _ = disp.flush(); // ignore bus write errors, they are harmless
 		}
-		thread::sleep(Duration::from_millis(1000));
+		thread::sleep(Duration::from_millis(66));
 	}
 }

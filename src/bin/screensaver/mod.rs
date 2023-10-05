@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 
 use embedded_graphics::mono_font::ascii::FONT_10X20;
 use embedded_graphics::{
@@ -15,15 +16,28 @@ use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
 use crate::{Draw, Rng};
 
+pub static SPEED: AtomicU64 = AtomicU64::new(32);
+
 pub trait Screensaver<D: DrawTarget<Color = Rgb565>>: Draw<D> {
 	fn id(&self) -> &'static str;
 	fn convert_draw(&self) -> Box<dyn Draw<D>>;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct SimpleScreensaver {
 	id: &'static str,
 	data: &'static [u8],
+	iters: AtomicU32,
+}
+
+impl Clone for SimpleScreensaver {
+	fn clone(&self) -> Self {
+		Self {
+			id: self.id,
+			data: self.data,
+			iters: AtomicU32::new(self.iters.load(std::sync::atomic::Ordering::Relaxed)),
+		}
+	}
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for SimpleScreensaver {
@@ -32,13 +46,13 @@ impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for SimpleScreensaver {
 	}
 
 	fn convert_draw(&self) -> Box<dyn Draw<D>> {
-		Box::new(*self)
+		Box::new(self.clone())
 	}
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for SimpleScreensaver {
 	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
-		for _ in 0..512 {
+		for _ in 0..SPEED.load(std::sync::atomic::Ordering::Relaxed) {
 			let x = (rng.next_u32() % 128) as usize;
 			let y = (rng.next_u32() % 128) as usize;
 			let dx = (rng.next_u32() % 8) as i32 - 4;
@@ -59,7 +73,12 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for SimpleScreensaver {
 				p.draw_styled(&s, disp)?;
 			}
 		}
+		self.iters.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 		Ok(true)
+	}
+
+	fn expired(&self) -> bool {
+		self.iters.load(std::sync::atomic::Ordering::Relaxed) > 1000
 	}
 }
 
@@ -68,7 +87,11 @@ impl SimpleScreensaver {
 		if data.len() != 128 * 128 * 3 {
 			panic!("invalid screensaver size");
 		}
-		SimpleScreensaver { id, data }
+		SimpleScreensaver {
+			id,
+			data,
+			iters: AtomicU32::new(0),
+		}
 	}
 }
 
@@ -140,7 +163,15 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for TimeDisplay {
 pub static STAR: SimpleScreensaver = SimpleScreensaver::new("star", include_bytes!("./star.raw"));
 pub static RPI: SimpleScreensaver = SimpleScreensaver::new("rpi", include_bytes!("./rpi.raw"));
 pub static DUOLINGO: SimpleScreensaver = SimpleScreensaver::new("duolingo", include_bytes!("./duolingo.raw"));
+pub static SPAGHETTI: SimpleScreensaver = SimpleScreensaver::new("spaghetti", include_bytes!("./spaghetti.raw"));
+pub static PLATE: SimpleScreensaver = SimpleScreensaver::new("plate", include_bytes!("./plate.raw"));
 
 pub fn screensavers<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Screensaver<D>>> {
-	vec![Box::new(STAR), Box::new(RPI), Box::new(DUOLINGO)]
+	vec![
+		Box::new(STAR.clone()),
+		Box::new(RPI.clone()),
+		Box::new(DUOLINGO.clone()),
+		Box::new(SPAGHETTI.clone()),
+		Box::new(PLATE.clone()),
+	]
 }

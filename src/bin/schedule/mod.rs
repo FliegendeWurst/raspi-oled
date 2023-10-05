@@ -40,6 +40,8 @@ impl Reminder {
 
 static DUOLINGO: Reminder = Reminder::new(11, 30, Action::Screensaver("duolingo"));
 static DUOLINGO_NIGHT: Reminder = Reminder::new(23, 30, Action::Screensaver("duolingo"));
+static FOOD: Reminder = Reminder::new(13, 15, Action::Screensaver("plate"));
+
 pub fn reminders() -> Vec<Box<dyn Schedule>> {
-	vec![Box::new(DUOLINGO), Box::new(DUOLINGO_NIGHT)]
+	vec![Box::new(DUOLINGO), Box::new(DUOLINGO_NIGHT), Box::new(FOOD)]
 }
