@@ -1,7 +1,9 @@
 #![feature(array_windows, round_char_boundary)]
 
 use std::{
+	any::Any,
 	cell::RefCell,
+	env,
 	rc::Rc,
 	thread,
 	time::{Duration, Instant},
@@ -9,6 +11,7 @@ use std::{
 
 use action::Action;
 use display_interface_spi::SPIInterfaceNoCS;
+use draw::Totp;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
@@ -75,6 +78,10 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 		}
 	}
 
+	fn add(&mut self, totp: Totp) {
+		self.screensavers.push(Box::new(totp));
+	}
+
 	fn loop_iter(&mut self, disp: &mut D, rng: &mut Rng) -> bool {
 		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
 		// check schedules
@@ -138,7 +145,7 @@ fn pc_main() {}
 
 #[cfg(feature = "pc")]
 fn pc_main() {
-	use std::{env, num::NonZeroU32};
+	use std::num::NonZeroU32;
 
 	use winit::{
 		dpi::LogicalSize,
@@ -173,7 +180,12 @@ fn pc_main() {
 	let mut buffer_dirty = true;
 
 	let mut ctx = ContextDefault::new();
-	ctx.do_action(Action::Screensaver("measurements"));
+	if args.iter().any(|x| x == "--totp") {
+		let pw = rpassword::prompt_password("TOTP password: ").unwrap();
+		let totps = andotp_import::read_from_file("./otp_accounts_2023-10-02_18-58-25.json.aes", &pw).unwrap();
+		ctx.add(Totp::new(totps));
+		ctx.do_action(Action::Screensaver("totp"));
+	}
 	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 
 	event_loop.run(move |event, _, control_flow| {
@@ -242,16 +254,20 @@ fn pc_main() {
 }
 
 pub trait Draw<D: DrawTarget<Color = Rgb565>> {
-	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
+	fn draw_with_ctx(&self, _ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
 		self.draw(disp, rng)
 	}
 	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
 	fn expired(&self) -> bool {
 		false
 	}
+	fn as_any(&self) -> &dyn Any;
+	fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 fn rpi_main() {
+	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
+
 	let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 	let gpio = Gpio::new().unwrap();
 	let dc = gpio.get(25).unwrap().into_output();
@@ -268,7 +284,14 @@ fn rpi_main() {
 	// Init PWM handling
 	let pwm = thread::spawn(handle_pwm);
 
-	main_loop(disp);
+	let mut ctx = ContextDefault::new();
+	if args.iter().any(|x| x == "--totp") {
+		let pw = rpassword::prompt_password("TOTP password: ").unwrap();
+		let totps = andotp_import::read_from_file("./otp_accounts_2023-10-02_18-58-25.json.aes", &pw).unwrap();
+		ctx.add(Totp::new(totps));
+	}
+
+	main_loop(disp, ctx);
 
 	let _ = pwm.join();
 }
@@ -296,10 +319,9 @@ fn handle_pwm() {
 	}
 }
 
-fn main_loop(mut disp: Oled) {
+fn main_loop(mut disp: Oled, mut ctx: ContextDefault<Oled>) {
 	disp.clear(BLACK).unwrap();
 
-	let mut ctx = ContextDefault::new();
 	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 	let mut last_button = Instant::now();
 
@@ -368,11 +390,19 @@ fn main_loop(mut disp: Oled) {
 						let _ = ctx.pop_action_and_clear(&mut disp);
 						disable_pwm().unwrap();
 						let _ = disp.flush();
+						clear = true;
 					}
 				},
-				[3] => {},
+				[3] => {
+					ctx.do_action(Action::Screensaver("totp"));
+				},
 				[3, 1] => {
-					enable_pwm().unwrap();
+					if let Some(x) = ctx.active.borrow_mut().last_mut() {
+						let totp: Option<&mut Totp> = x.as_any_mut().downcast_mut();
+						if let Some(x) = totp {
+							x.next_page();
+						}
+					}
 					pop_last = true;
 				},
 				[3, 2] => {

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 
@@ -80,6 +81,14 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for SimpleScreensaver {
 	fn expired(&self) -> bool {
 		self.iters.load(std::sync::atomic::Ordering::Relaxed) > 1000
 	}
+
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		self
+	}
 }
 
 impl SimpleScreensaver {
@@ -157,6 +166,14 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for TimeDisplay {
 		)
 		.draw(disp)?;
 		Ok(true)
+	}
+
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		self
 	}
 }
 

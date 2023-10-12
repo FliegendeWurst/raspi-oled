@@ -1,4 +1,4 @@
-use std::{fs, ops::Sub, sync::atomic::AtomicBool, time::Duration};
+use std::{any::Any, fs, ops::Sub, sync::atomic::AtomicBool, time::Duration};
 
 use embedded_graphics::{
 	image::ImageRaw,
@@ -418,5 +418,13 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 
 	fn draw(&self, disp: &mut D, rng: &mut crate::Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		panic!("draw without ctx");
+	}
+
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		self
 	}
 }

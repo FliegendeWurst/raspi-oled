@@ -26,6 +26,9 @@ winit = { version = "0.28.7", optional = true }
 softbuffer = { version = "0.3.1", optional = true }
 rand_xoshiro = "0.6.0"
 gpiocdev = "0.6.0"
+rpassword = "7.2.0"
+andotp-import = "0.1.0"
+totp-rs = "5.4.0"
 #gpio-am2302-rs = { git = "https://github.com/FliegendeWurst/gpio-am2302-rs" }
 
 [features]
