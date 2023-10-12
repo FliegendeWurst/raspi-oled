@@ -4,25 +4,25 @@ use linux_embedded_hal::I2cdev;
 
 const CCS811_ADDR: u8 = 0x5A; // or 0x5B
 
-const CCS811_STATUS: u8 = 0x00;
-const CCS811_MEAS_MODE: u8 = 0x01;
-const CCS811_ALG_RESULT_DATA: u8 = 0x02;
-const CCS811_RAW_DATA: u8 = 0x03;
-const CCS811_ENV_DATA: u8 = 0x05;
-const CCS811_NTC: u8 = 0x06;
-const CCS811_THRESHOLDS: u8 = 0x10;
-const CCS811_BASELINE: u8 = 0x11;
-const CCS811_HW_ID: u8 = 0x20;
-const CCS811_HW_VERSION: u8 = 0x21;
-const CCS811_FW_BOOT_VERSION: u8 = 0x23;
-const CCS811_FW_APP_VERSION: u8 = 0x24;
-const CCS811_ERROR_ID: u8 = 0xE0;
-const CCS811_APP_START: u8 = 0xF4;
-const CCS811_SW_RESET: u8 = 0xFF;
+pub const CCS811_STATUS: u8 = 0x00;
+pub const CCS811_MEAS_MODE: u8 = 0x01;
+pub const CCS811_ALG_RESULT_DATA: u8 = 0x02;
+pub const CCS811_RAW_DATA: u8 = 0x03;
+pub const CCS811_ENV_DATA: u8 = 0x05;
+pub const CCS811_NTC: u8 = 0x06;
+pub const CCS811_THRESHOLDS: u8 = 0x10;
+pub const CCS811_BASELINE: u8 = 0x11;
+pub const CCS811_HW_ID: u8 = 0x20;
+pub const CCS811_HW_VERSION: u8 = 0x21;
+pub const CCS811_FW_BOOT_VERSION: u8 = 0x23;
+pub const CCS811_FW_APP_VERSION: u8 = 0x24;
+pub const CCS811_ERROR_ID: u8 = 0xE0;
+pub const CCS811_APP_START: u8 = 0xF4;
+pub const CCS811_SW_RESET: u8 = 0xFF;
 
-struct CCS811 {
+pub struct CCS811 {
 	i2c: I2cdev,
-	addr: u8,
+	pub addr: u8,
 }
 
 impl CCS811 {
@@ -79,7 +79,7 @@ impl CCS811 {
 	}
 }
 
-enum CCS811DriveMode {
+pub enum CCS811DriveMode {
 	Idle = 0,
 	EverySecond = 1,
 	Every10Seconds = 2,

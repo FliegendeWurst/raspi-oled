@@ -405,7 +405,11 @@ fn main_loop(mut disp: Oled, mut ctx: ContextDefault<Oled>) {
 					}
 					pop_last = true;
 				},
-				[3, 2] => {
+				[3, 2, 1] => {
+					enable_pwm().unwrap();
+					pop_last = true;
+				},
+				[3, 2, 3] => {
 					disable_pwm().unwrap();
 					pop_last = true;
 				},

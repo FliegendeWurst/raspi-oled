@@ -13,7 +13,7 @@ use embedded_graphics::{
 };
 use totp_rs::TOTP;
 
-use crate::{screensaver::Screensaver, Context, ContextDefault, Draw, BLACK};
+use crate::{screensaver::Screensaver, Draw, BLACK};
 
 #[derive(Debug, Clone)]
 pub struct Totp {
@@ -33,6 +33,9 @@ impl Totp {
 
 	pub fn next_page(&mut self) {
 		self.page += 1;
+        if self.secrets.len() < self.page * 6 {
+            self.page = 0;
+        }
 	}
 }
 

@@ -3,7 +3,7 @@ use std::{any::Any, fs, ops::Sub, sync::atomic::AtomicBool, time::Duration};
 use embedded_graphics::{
 	image::ImageRaw,
 	mono_font::{
-		ascii::{FONT_10X20, FONT_4X6, FONT_5X8, FONT_6X9, FONT_9X15},
+		ascii::{FONT_4X6, FONT_5X8, FONT_6X9, FONT_9X15},
 		mapping::StrGlyphMapping,
 		DecorationDimensions, MonoFont, MonoTextStyleBuilder,
 	},
@@ -85,7 +85,7 @@ impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for Measurements {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
-	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, rng: &mut crate::Rng) -> Result<bool, D::Error> {
+	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, _rng: &mut crate::Rng) -> Result<bool, D::Error> {
 		if self.drawn.load(std::sync::atomic::Ordering::Relaxed) {
 			return Ok(false);
 		}
@@ -416,7 +416,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 		Ok(true)
 	}
 
-	fn draw(&self, disp: &mut D, rng: &mut crate::Rng) -> Result<bool, <D as DrawTarget>::Error> {
+	fn draw(&self, _disp: &mut D, _rng: &mut crate::Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		panic!("draw without ctx");
 	}
 
