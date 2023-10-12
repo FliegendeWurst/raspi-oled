@@ -1,21 +1,24 @@
-#![feature(array_windows)]
+#![feature(array_windows, round_char_boundary)]
 
 use std::{
 	cell::RefCell,
+	rc::Rc,
 	thread,
 	time::{Duration, Instant},
 };
 
 use action::Action;
 use display_interface_spi::SPIInterfaceNoCS;
-use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget, Drawable};
+use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
+use raspi_oled::{disable_pwm, enable_pwm, PWM_ON};
 use rppal::{
 	gpio::{Gpio, OutputPin},
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
+use rusqlite::Connection;
 use schedule::Schedule;
 use screensaver::{Screensaver, TimeDisplay};
 use ssd1351::display::display::Ssd1351;
@@ -23,6 +26,7 @@ use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
 mod action;
+mod draw;
 mod schedule;
 mod screensaver;
 
@@ -43,18 +47,29 @@ pub trait Context {
 	fn do_action(&self, action: Action);
 
 	fn active_count(&self) -> usize;
+
+	fn database(&self) -> Rc<RefCell<Connection>>;
+
+	fn enable_pwm(&self);
 }
 
-struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
+pub struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
 	screensavers: Vec<Box<dyn Screensaver<D>>>,
 	scheduled: Vec<Box<dyn Schedule>>,
 	active: RefCell<Vec<Box<dyn Draw<D>>>>,
+	database: Rc<RefCell<Connection>>,
 }
 
 impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 	fn new() -> Self {
+		let mut screensavers = screensaver::screensavers();
+		screensavers.push(Box::new(draw::Measurements::default()));
+		screensavers.push(Box::new(draw::Measurements::temps()));
+		screensavers.push(Box::new(draw::Measurements::events()));
+		let database = Connection::open("sensors.db").expect("failed to open database");
 		ContextDefault {
-			screensavers: screensaver::screensavers(),
+			database: Rc::new(RefCell::new(database)),
+			screensavers,
 			scheduled: schedule::reminders(),
 			active: RefCell::new(vec![Box::new(TimeDisplay::new())]),
 		}
@@ -72,10 +87,11 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 		}
 		let a = active.last().unwrap();
 		if !a.expired() {
-			return a.draw(disp, rng).unwrap_or(true);
+			return a.draw_with_ctx(self, disp, rng).unwrap_or(true);
 		}
 		drop(active);
 		self.active.borrow_mut().pop();
+		disable_pwm().unwrap();
 		self.loop_iter(disp, rng)
 	}
 
@@ -106,6 +122,14 @@ impl<D: DrawTarget<Color = Rgb565>> Context for ContextDefault<D> {
 
 	fn active_count(&self) -> usize {
 		self.active.borrow().len()
+	}
+
+	fn database(&self) -> Rc<RefCell<Connection>> {
+		self.database.clone()
+	}
+
+	fn enable_pwm(&self) {
+		enable_pwm().unwrap();
 	}
 }
 
@@ -149,7 +173,7 @@ fn pc_main() {
 	let mut buffer_dirty = true;
 
 	let mut ctx = ContextDefault::new();
-	ctx.do_action(Action::Screensaver("plate"));
+	ctx.do_action(Action::Screensaver("measurements"));
 	let mut rng = Xoroshiro128StarStar::seed_from_u64(17381);
 
 	event_loop.run(move |event, _, control_flow| {
@@ -209,6 +233,7 @@ fn pc_main() {
 					}
 					buffer.present().unwrap();
 					buffer_dirty = false;
+					let _ = disp.buffer.save(format!("/tmp/iter{}.png", iters));
 				}
 			},
 			_ => (),
@@ -217,6 +242,9 @@ fn pc_main() {
 }
 
 pub trait Draw<D: DrawTarget<Color = Rgb565>> {
+	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
+		self.draw(disp, rng)
+	}
 	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
 	fn expired(&self) -> bool {
 		false
@@ -237,7 +265,35 @@ fn rpi_main() {
 	disp.reset(&mut rst, &mut Delay).unwrap();
 	disp.turn_on().unwrap();
 
+	// Init PWM handling
+	let pwm = thread::spawn(handle_pwm);
+
 	main_loop(disp);
+
+	let _ = pwm.join();
+}
+
+fn handle_pwm() {
+	let pwm = gpiocdev::Request::builder()
+		.on_chip("/dev/gpiochip0")
+		.with_line(12)
+		.as_output(Value::Inactive)
+		.request()
+		.unwrap();
+	loop {
+		thread::sleep(Duration::from_millis(500));
+		let on = PWM_ON.load(std::sync::atomic::Ordering::Relaxed);
+		if !on {
+			let _ = pwm.set_value(12, Value::Inactive);
+			continue;
+		}
+		for _ in 0..100 {
+			let _ = pwm.set_value(12, Value::Active);
+			thread::sleep(Duration::from_millis(1));
+			let _ = pwm.set_value(12, Value::Inactive);
+			thread::sleep(Duration::from_millis(1));
+		}
+	}
 }
 
 fn main_loop(mut disp: Oled) {
@@ -278,29 +334,63 @@ fn main_loop(mut disp: Oled) {
 			let e = lines.read_edge_event().unwrap();
 			last_button = Instant::now();
 			match e.offset {
-				19 => {
+				5 => {
 					menu.push(1);
 				},
 				6 => {
 					menu.push(2);
 				},
-				5 => {
+				19 => {
 					menu.push(3);
 				},
 				_ => {
 					println!("unknown offset: {}", e.offset);
 				},
 			}
+			let mut pop_last = false;
+			let mut clear = false;
 			match &*menu {
-				[2] => {
-					let _ = ctx.pop_action_and_clear(&mut disp);
+				[1] => {
+					ctx.do_action(Action::Screensaver("measurements"));
 				},
-				[3] => {
+				[1, 2] => {
+					let _ = ctx.pop_action_and_clear(&mut disp);
+					ctx.do_action(Action::Screensaver("measurements_temps"));
+					pop_last = true;
+				},
+				[1, 3] => {
+					let _ = ctx.pop_action_and_clear(&mut disp);
+					ctx.do_action(Action::Screensaver("measurements_events"));
+					pop_last = true;
+				},
+				[2] => {
+					if ctx.active_count() > 1 {
+						let _ = ctx.pop_action_and_clear(&mut disp);
+						disable_pwm().unwrap();
+						let _ = disp.flush();
+					}
+				},
+				[3] => {},
+				[3, 1] => {
+					enable_pwm().unwrap();
+					pop_last = true;
+				},
+				[3, 2] => {
+					disable_pwm().unwrap();
+					pop_last = true;
+				},
+				[3, 3] => {
 					ctx.do_action(Action::Screensaver("rpi"));
+					clear = true;
 				},
 				_ => {},
 			}
-			//println!("menu: {menu:?}");
+			if pop_last {
+				menu.pop();
+			}
+			if clear {
+				menu.clear();
+			}
 		}
 		// clean up stale menu selection
 		if !menu.is_empty() && Instant::now().duration_since(last_button).as_secs() >= 10 {

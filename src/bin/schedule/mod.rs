@@ -20,6 +20,7 @@ pub struct Reminder {
 	hour: u8,
 	minute: u8,
 	action: Action,
+	should_beep: bool,
 }
 
 impl Schedule for Reminder {
@@ -28,19 +29,27 @@ impl Schedule for Reminder {
 	}
 
 	fn execute(&self, ctx: &dyn Context, _time: OffsetDateTime) {
+		if self.should_beep {
+			ctx.enable_pwm();
+		}
 		ctx.do_action(self.action);
 	}
 }
 
 impl Reminder {
-	const fn new(hour: u8, minute: u8, action: Action) -> Self {
-		Reminder { hour, minute, action }
+	const fn new(hour: u8, minute: u8, action: Action, should_beep: bool) -> Self {
+		Reminder {
+			hour,
+			minute,
+			action,
+			should_beep,
+		}
 	}
 }
 
-static DUOLINGO: Reminder = Reminder::new(11, 30, Action::Screensaver("duolingo"));
-static DUOLINGO_NIGHT: Reminder = Reminder::new(23, 30, Action::Screensaver("duolingo"));
-static FOOD: Reminder = Reminder::new(13, 15, Action::Screensaver("plate"));
+static DUOLINGO: Reminder = Reminder::new(11, 40, Action::Screensaver("duolingo"), false);
+static DUOLINGO_NIGHT: Reminder = Reminder::new(23, 40, Action::Screensaver("duolingo"), false);
+static FOOD: Reminder = Reminder::new(13, 15, Action::Screensaver("plate"), false);
 
 pub fn reminders() -> Vec<Box<dyn Schedule>> {
 	vec![Box::new(DUOLINGO), Box::new(DUOLINGO_NIGHT), Box::new(FOOD)]

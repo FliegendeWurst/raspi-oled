@@ -16,38 +16,14 @@ use embedded_graphics::{
 	Drawable,
 };
 
+use raspi_oled::Events;
 use rppal::{
 	gpio::Gpio,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
 use rusqlite::Connection;
-use serde_derive::Deserialize;
-//use ssd1306::{I2CDisplayInterface, Ssd1306, size::DisplaySize128x64, rotation::DisplayRotation, mode::DisplayConfig};
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
-
-#[derive(Deserialize)]
-struct Events {
-	events: Vec<Event>,
-	weekly: Vec<Weekly>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Event {
-	name: String,
-	start_time: String,
-	end_time: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct Weekly {
-	name: String,
-	day: i32,
-	hour: i32,
-	minute: i32,
-	duration: i32,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Status {

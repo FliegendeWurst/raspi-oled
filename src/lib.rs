@@ -1,4 +1,5 @@
 use std::{
+	sync::atomic::AtomicBool,
 	thread::sleep,
 	time::{self, Duration},
 };
@@ -8,7 +9,7 @@ use embedded_graphics::{
 	pixelcolor::Rgb565,
 	prelude::{OriginDimensions, RgbColor, Size},
 };
-use gpiocdev::line::{Bias, EdgeDetection, EdgeKind, Value};
+use gpiocdev::line::{Bias, EdgeKind, Value};
 #[cfg(feature = "pc")]
 use image::{ImageBuffer, Rgb};
 
@@ -65,21 +66,34 @@ fn read_events(timeout: std::time::Duration) -> Result<Vec<(u64, EdgeKind)>, Sen
 		.on_chip("/dev/gpiochip0")
 		.with_line(26)
 		.as_input()
-		.with_edge_detection(EdgeDetection::BothEdges)
+		//.with_edge_detection(EdgeDetection::BothEdges)
+		//.with_debounce_period(Duration::ZERO)
+		.with_kernel_event_buffer_size(1024)
 		.with_bias(Bias::PullDown)
 		.request()?;
 
 	let start = time::Instant::now();
+	let mut last_value = Value::Active;
 
 	let mut events = Vec::with_capacity(81);
 	while start.elapsed() < timeout && events.len() < 81 {
+		let new_value = input.value(26)?;
+		if new_value != last_value {
+			match new_value {
+				Value::Inactive => events.push((start.elapsed().as_micros() as u64, EdgeKind::Falling)),
+				Value::Active => events.push((start.elapsed().as_micros() as u64, EdgeKind::Rising)),
+			}
+			last_value = new_value;
+		}
+		/*
 		if input.wait_edge_event(timeout)? {
 			let event = input.read_edge_event()?;
 			events.push((start.elapsed().as_micros() as u64, event.kind));
 		}
+		*/
 	}
 	if events.len() < 81 {
-		println!("error: only got {} events", events.len());
+		println!("error: only got {} events: {:?}", events.len(), events);
 		return Err(SensorError::Timeout);
 	}
 	Ok(events)
@@ -174,10 +188,15 @@ pub fn am2302_reading() -> Result<(u16, u16), SensorError> {
 	out.set_value(26, Value::Active)?;
 	sleep(Duration::from_millis(500));
 	set_max_priority();
+	out.set_value(26, Value::Inactive)?;
+	sleep(Duration::from_millis(4));
+	drop(out);
+	/*
 	// set low for 20 ms
 	out.set_value(26, Value::Inactive)?;
 	sleep(Duration::from_millis(3));
 	drop(out);
+	*/
 
 	let events = read_events(Duration::from_secs(1));
 	println!("{:?} {:?}", events, events.as_ref().map(|x| x.len()));
@@ -200,4 +219,58 @@ fn set_normal_priority() {
 		let sched_para: libc::sched_param = std::mem::transmute([0u8; std::mem::size_of::<libc::sched_param>()]);
 		libc::sched_setscheduler(0, libc::SCHED_OTHER, (&sched_para) as *const libc::sched_param);
 	}
+}
+
+pub fn disable_pwm() -> Result<(), rppal::pwm::Error> {
+	/*
+	let pwm = Pwm::new(rppal::pwm::Channel::Pwm0)?;
+	if pwm.is_enabled()? {
+		pwm.disable()?;
+	}
+	*/
+	PWM_ON.store(false, std::sync::atomic::Ordering::Relaxed);
+	Ok(())
+}
+
+pub fn enable_pwm() -> Result<(), rppal::pwm::Error> {
+	PWM_ON.store(true, std::sync::atomic::Ordering::Relaxed);
+	/*
+	let mut pwm = Pwm::with_period(
+		rppal::pwm::Channel::Pwm0,
+		Duration::from_micros(500),
+		Duration::from_micros(250),
+		rppal::pwm::Polarity::Normal,
+		true,
+	)?;
+	assert!(pwm.is_enabled()?);
+	pwm.set_reset_on_drop(false);
+	*/
+	Ok(())
+}
+
+pub static PWM_ON: AtomicBool = AtomicBool::new(false);
+
+use serde_derive::Deserialize;
+
+#[derive(Deserialize)]
+pub struct Events {
+	pub events: Vec<Event>,
+	pub weekly: Vec<Weekly>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Event {
+	pub name: String,
+	pub start_time: String,
+	pub end_time: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct Weekly {
+	pub name: String,
+	pub day: i32,
+	pub hour: i32,
+	pub minute: i32,
+	pub duration: i32,
 }
