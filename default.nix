@@ -16,7 +16,7 @@ rustPlatform.buildRustPackage {
 
   nativeBuildInputs = [ pkg-config ];
 
-  cargoBuildFlags = [ "--no-default-features" "--bin" "main_loop" ];
+  cargoBuildFlags = [ "--no-default-features" "--bin" "take_measurement" ];
 
   buildInputs = [ sqlite ];
 

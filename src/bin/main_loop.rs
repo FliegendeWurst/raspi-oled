@@ -326,13 +326,6 @@ fn main_loop(mut disp: Oled, mut ctx: ContextDefault<Oled>) {
 	let mut last_button = Instant::now();
 
 	let mut menu = vec![];
-	// high pins for buttons
-	let _high_outputs = gpiocdev::Request::builder()
-		.on_chip("/dev/gpiochip0")
-		.with_lines(&[23, 24])
-		.as_output(Value::Active)
-		.request()
-		.unwrap();
 	let lines = gpiocdev::Request::builder()
 		.on_chip("/dev/gpiochip0")
 		.with_line(19)

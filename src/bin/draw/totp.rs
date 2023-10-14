@@ -33,9 +33,9 @@ impl Totp {
 
 	pub fn next_page(&mut self) {
 		self.page += 1;
-        if self.secrets.len() < self.page * 6 {
-            self.page = 0;
-        }
+		if self.secrets.len() < self.page * 6 {
+			self.page = 0;
+		}
 	}
 }
 
