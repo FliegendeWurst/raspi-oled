@@ -16,7 +16,7 @@ use embedded_graphics::{
 use raspi_oled::Events;
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
 
-use crate::{screensaver::Screensaver, Context, ContextDefault, Draw};
+use crate::{screensaver::Screensaver, Context, ContextDefault, Draw, BLACK};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
 
 static CLOCK_FONT: MonoFont = MonoFont {
@@ -89,6 +89,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 		if self.drawn.load(std::sync::atomic::Ordering::Relaxed) {
 			return Ok(false);
 		}
+		disp.clear(BLACK)?;
 		let events = fs::read_to_string("events.json").expect("failed to read events.json");
 		let events: Events = serde_json::from_str(&events).unwrap();
 		let database = ctx.database();
