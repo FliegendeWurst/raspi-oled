@@ -9,7 +9,11 @@ use embedded_graphics::{
 	pixelcolor::Rgb565,
 	prelude::{OriginDimensions, RgbColor, Size},
 };
-use gpiocdev::line::{Bias, EdgeKind, Value};
+use gpiocdev::{
+	line::{Bias, EdgeKind, Value},
+	request::Config,
+	Request,
+};
 #[cfg(feature = "pc")]
 use image::{ImageBuffer, Rgb};
 
@@ -61,7 +65,12 @@ impl OriginDimensions for FrameOutput {
 	}
 }
 
-fn read_events(timeout: std::time::Duration) -> Result<Vec<(u64, EdgeKind)>, SensorError> {
+fn read_events(timeout: std::time::Duration, input: Request) -> Result<Vec<(u64, EdgeKind)>, SensorError> {
+	let mut c = Config::default();
+	c.as_input();
+	c.with_bias(Bias::PullUp);
+	input.reconfigure(&c)?;
+	/*
 	let input = gpiocdev::Request::builder()
 		.on_chip("/dev/gpiochip0")
 		.with_line(26)
@@ -69,8 +78,9 @@ fn read_events(timeout: std::time::Duration) -> Result<Vec<(u64, EdgeKind)>, Sen
 		//.with_edge_detection(EdgeDetection::BothEdges)
 		//.with_debounce_period(Duration::ZERO)
 		.with_kernel_event_buffer_size(1024)
-		.with_bias(Bias::PullDown)
+		.with_bias(Bias::PullUp)
 		.request()?;
+	*/
 
 	let start = time::Instant::now();
 	let mut last_value = Value::Active;
@@ -189,16 +199,9 @@ pub fn am2302_reading() -> Result<(u16, u16), SensorError> {
 	sleep(Duration::from_millis(500));
 	set_max_priority();
 	out.set_value(26, Value::Inactive)?;
-	sleep(Duration::from_millis(4));
-	drop(out);
-	/*
-	// set low for 20 ms
-	out.set_value(26, Value::Inactive)?;
-	sleep(Duration::from_millis(3));
-	drop(out);
-	*/
+	sleep(Duration::from_millis(2));
 
-	let events = read_events(Duration::from_secs(1));
+	let events = read_events(Duration::from_secs(1), out);
 	println!("{:?} {:?}", events, events.as_ref().map(|x| x.len()));
 	set_normal_priority();
 	let events = events?;
