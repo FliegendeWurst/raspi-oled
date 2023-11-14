@@ -142,11 +142,24 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for TimeDisplay {
 		}
 		*self.last_min.borrow_mut() = time;
 		disp.clear(Rgb565::new(0, 0, 0))?;
-		let text_style_clock = MonoTextStyleBuilder::new()
-			.font(&FONT_10X20)
-			.text_color(TIME_COLOR)
-			.build();
+		let text_style_clock = MonoTextStyleBuilder::new().font(&FONT_10X20);
 		let hour = time.hour();
+		let text_style_clock = match hour {
+			// red, ?, bright green, blue, dark blue, purple
+			0 => text_style_clock.text_color(Rgb565::new(0b01_111, 0b000_000, 0b00_000)),
+			1 => text_style_clock.text_color(Rgb565::new(0b01_111, 0b011_111, 0b00_000)),
+			2 => text_style_clock.text_color(Rgb565::new(0b00_000, 0b011_111, 0b00_000)),
+			3 => text_style_clock.text_color(Rgb565::new(0b00_000, 0b011_111, 0b01_111)),
+			4 => text_style_clock.text_color(Rgb565::new(0b00_000, 0b000_000, 0b01_111)),
+			5 => text_style_clock.text_color(Rgb565::new(0b01_111, 0b000_000, 0b01_111)),
+			// repeats
+			// another blue, another red/brown, another green
+			6 => text_style_clock.text_color(Rgb565::new(0b00_111, 0b001_111, 0b01_111)),
+			7 => text_style_clock.text_color(Rgb565::new(0b01_111, 0b001_111, 0b00_111)),
+			8 => text_style_clock.text_color(Rgb565::new(0b00_111, 0b011_111, 0b00_111)),
+			_ => text_style_clock.text_color(TIME_COLOR),
+		}
+		.build();
 		let minute = time.minute();
 		let unix_minutes = minute as i32 * 5 / 3; // (time.unix_timestamp() / 60) as i32;
 		let dx = ((hour % 3) as i32 - 1) * 40 - 2;
