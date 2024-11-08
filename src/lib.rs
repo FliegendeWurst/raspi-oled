@@ -17,6 +17,8 @@ use gpiocdev::{
 #[cfg(feature = "pc")]
 use image::{ImageBuffer, Rgb};
 
+pub mod github;
+
 #[cfg(feature = "pc")]
 pub struct FrameOutput {
 	pub buffer: ImageBuffer<Rgb<u8>, Vec<u8>>,
@@ -43,7 +45,8 @@ impl DrawTarget for FrameOutput {
 	{
 		for pos in pixels {
 			if pos.0.x < 0
-				|| pos.0.y < 0 || pos.0.x as u32 >= self.buffer.width()
+				|| pos.0.y < 0
+				|| pos.0.x as u32 >= self.buffer.width()
 				|| pos.0.y as u32 >= self.buffer.height()
 			{
 				continue;

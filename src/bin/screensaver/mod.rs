@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 
 use embedded_graphics::mono_font::ascii::FONT_10X20;
+use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::{
 	mono_font::MonoTextStyleBuilder,
 	pixelcolor::Rgb565,
@@ -102,6 +103,24 @@ impl SimpleScreensaver {
 			iters: AtomicU32::new(0),
 		}
 	}
+
+	pub fn draw_all<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, color: Rgb565) -> Result<(), D::Error> {
+		disp.fill_contiguous(
+			&Rectangle::new((0, 0).into(), (128, 128).into()),
+			(0..128 * 128).map(|idx| {
+				let (red, green, blue) = (self.data[3 * idx], self.data[3 * idx + 1], self.data[3 * idx + 2]);
+				let r = red >> 3;
+				let g = green >> 2;
+				let b = blue >> 3;
+				if (r, g, b) != (0, 0, 0) {
+					color
+				} else {
+					Rgb565::BLACK
+				}
+			}),
+		)?;
+		Ok(())
+	}
 }
 
 static TIME_COLOR: Rgb565 = Rgb565::new(0b01_111, 0b011_111, 0b01_111);
@@ -195,6 +214,7 @@ pub static RPI: SimpleScreensaver = SimpleScreensaver::new("rpi", include_bytes!
 pub static DUOLINGO: SimpleScreensaver = SimpleScreensaver::new("duolingo", include_bytes!("./duolingo.raw"));
 pub static SPAGHETTI: SimpleScreensaver = SimpleScreensaver::new("spaghetti", include_bytes!("./spaghetti.raw"));
 pub static PLATE: SimpleScreensaver = SimpleScreensaver::new("plate", include_bytes!("./plate.raw"));
+pub static GITHUB: SimpleScreensaver = SimpleScreensaver::new("github", include_bytes!("./github.raw"));
 
 pub fn screensavers<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Screensaver<D>>> {
 	vec![

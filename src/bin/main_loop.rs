@@ -22,7 +22,7 @@ use rppal::{
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
 use rusqlite::Connection;
-use schedule::Schedule;
+use schedule::{github_notifications::GithubNotifications, Schedule};
 use screensaver::{Screensaver, TimeDisplay};
 use ssd1351::display::display::Ssd1351;
 use time::OffsetDateTime;
@@ -37,6 +37,8 @@ pub type Oled = Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>;
 pub type Rng = Xoroshiro128StarStar;
 
 static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
+/// Delay after drawing a frame in milliseconds.
+const FRAME_INTERVAL: u64 = 66;
 
 fn main() {
 	if rppal::system::DeviceInfo::new().is_ok() {
@@ -46,7 +48,9 @@ fn main() {
 	}
 }
 
-pub trait Context {
+pub trait Context<D: DrawTarget<Color = Rgb565>> {
+	fn do_draw(&self, drawable: Box<dyn Draw<D>>);
+
 	fn do_action(&self, action: Action);
 
 	fn active_count(&self) -> usize;
@@ -58,7 +62,7 @@ pub trait Context {
 
 pub struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
 	screensavers: Vec<Box<dyn Screensaver<D>>>,
-	scheduled: Vec<Box<dyn Schedule>>,
+	scheduled: Vec<Box<dyn Schedule<D>>>,
 	active: RefCell<Vec<Box<dyn Draw<D>>>>,
 	database: Rc<RefCell<Connection>>,
 }
@@ -70,10 +74,16 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 		screensavers.push(Box::new(draw::Measurements::temps()));
 		screensavers.push(Box::new(draw::Measurements::events()));
 		let database = Connection::open("sensors.db").expect("failed to open database");
+		let mut scheduled = schedule::reminders();
+		scheduled.push(Box::new(GithubNotifications {
+			pat: env::var("GITHUB_PAT").expect("no env var GITHUB_PAT set"),
+			last_modified: RefCell::new(None),
+			last_call: RefCell::new(OffsetDateTime::now_utc().to_timezone(BERLIN) - time::Duration::seconds(50)),
+		}));
 		ContextDefault {
 			database: Rc::new(RefCell::new(database)),
 			screensavers,
-			scheduled: schedule::reminders(),
+			scheduled,
 			active: RefCell::new(vec![Box::new(TimeDisplay::new())]),
 		}
 	}
@@ -112,7 +122,11 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 	}
 }
 
-impl<D: DrawTarget<Color = Rgb565>> Context for ContextDefault<D> {
+impl<D: DrawTarget<Color = Rgb565>> Context<D> for ContextDefault<D> {
+	fn do_draw(&self, drawable: Box<dyn Draw<D>>) {
+		self.active.borrow_mut().push(drawable);
+	}
+
 	fn do_action(&self, action: Action) {
 		match action {
 			Action::Screensaver(id) => {
@@ -226,7 +240,7 @@ fn pc_main() {
 					.unwrap();
 
 				// redraw
-				if Instant::now().duration_since(start) > Duration::from_millis(iters * 66) {
+				if Instant::now().duration_since(start) > Duration::from_millis(iters * FRAME_INTERVAL) {
 					iters += 1;
 					buffer_dirty = ctx.loop_iter(&mut disp, &mut rng);
 				}
@@ -428,6 +442,6 @@ fn main_loop(mut disp: Oled, mut ctx: ContextDefault<Oled>) {
 		if dirty {
 			let _ = disp.flush(); // ignore bus write errors, they are harmless
 		}
-		thread::sleep(Duration::from_millis(66));
+		thread::sleep(Duration::from_millis(FRAME_INTERVAL));
 	}
 }

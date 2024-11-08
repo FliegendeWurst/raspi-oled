@@ -321,8 +321,8 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 						}
 						if time_until_first.is_none()
 							&& (i > 0
-								|| event.1 > time.hour() as i32 || (event.1 == time.hour() as i32
-								&& event.2 >= time.minute() as i32))
+								|| event.1 > time.hour() as i32
+								|| (event.1 == time.hour() as i32 && event.2 >= time.minute() as i32))
 						{
 							time_until_first = Some(
 								((i * 24 + event.1) * 60 + event.2) * 60

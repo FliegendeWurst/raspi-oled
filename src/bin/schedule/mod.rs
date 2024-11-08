@@ -1,18 +1,24 @@
+use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use time::OffsetDateTime;
 
 use crate::{action::Action, Context};
 
+pub mod github_notifications;
+
 /// Task to be executed at certain times.
 /// Guaranteed to be checked at least once every minute.
-pub trait Schedule {
-	fn check_and_do(&self, ctx: &dyn Context, time: OffsetDateTime) {
+pub trait Schedule<D>
+where
+	D: DrawTarget<Color = Rgb565>,
+{
+	fn check_and_do(&self, ctx: &dyn Context<D>, time: OffsetDateTime) {
 		if self.check(ctx, time) {
 			self.execute(ctx, time);
 		}
 	}
 
-	fn check(&self, ctx: &dyn Context, time: OffsetDateTime) -> bool;
-	fn execute(&self, ctx: &dyn Context, time: OffsetDateTime);
+	fn check(&self, ctx: &dyn Context<D>, time: OffsetDateTime) -> bool;
+	fn execute(&self, ctx: &dyn Context<D>, time: OffsetDateTime);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -23,12 +29,12 @@ pub struct Reminder {
 	should_beep: bool,
 }
 
-impl Schedule for Reminder {
-	fn check(&self, ctx: &dyn Context, time: OffsetDateTime) -> bool {
+impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for Reminder {
+	fn check(&self, ctx: &dyn Context<D>, time: OffsetDateTime) -> bool {
 		time.hour() == self.hour && time.minute() == self.minute && ctx.active_count() == 1
 	}
 
-	fn execute(&self, ctx: &dyn Context, _time: OffsetDateTime) {
+	fn execute(&self, ctx: &dyn Context<D>, _time: OffsetDateTime) {
 		if self.should_beep {
 			ctx.enable_pwm();
 		}
@@ -51,6 +57,6 @@ static DUOLINGO: Reminder = Reminder::new(11, 40, Action::Screensaver("duolingo"
 static DUOLINGO_NIGHT: Reminder = Reminder::new(23, 40, Action::Screensaver("duolingo"), false);
 static FOOD: Reminder = Reminder::new(13, 15, Action::Screensaver("plate"), false);
 
-pub fn reminders() -> Vec<Box<dyn Schedule>> {
+pub fn reminders<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Schedule<D>>> {
 	vec![Box::new(DUOLINGO), Box::new(DUOLINGO_NIGHT), Box::new(FOOD)]
 }
