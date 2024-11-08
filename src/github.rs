@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use serde::Deserialize;
+use time::{macros::format_description, PrimitiveDateTime};
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[non_exhaustive]
@@ -207,9 +208,16 @@ pub fn get_new_notifications(
 	}
 	let json = resp.call()?.into_string()?;
 	let items: Vec<Notification> = serde_json::from_str(&json)?;
-	let last_modified = items
+	let mut last_modified = items
 		.get(0)
 		.map(|x| x.updated_at.clone())
 		.or_else(|| last_modified.map(|x| x.to_owned()));
+	if let Some(lm) = last_modified.as_mut() {
+		// parse and increase by one second
+		let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
+		let mut dt = PrimitiveDateTime::parse(lm, format)?;
+		dt += time::Duration::seconds(1);
+		*lm = dt.format(&format)?;
+	}
 	Ok((items, last_modified))
 }

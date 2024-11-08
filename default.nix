@@ -2,7 +2,7 @@
 
 rustPlatform.buildRustPackage {
   pname = "raspi-oled";
-  version = "unstable-infdev-4";
+  version = "unstable-infdev-6";
 
   src = ./.;
 
@@ -16,7 +16,7 @@ rustPlatform.buildRustPackage {
 
   nativeBuildInputs = [ pkg-config ];
 
-  cargoBuildFlags = [ "--no-default-features" "--bin" "take_measurement" ];
+  cargoBuildFlags = [ "--no-default-features" "--bin" "main_loop" ];
 
   buildInputs = [ sqlite ];
 
