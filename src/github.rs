@@ -208,16 +208,17 @@ pub fn get_new_notifications(
 	}
 	let json = resp.call()?.into_string()?;
 	let items: Vec<Notification> = serde_json::from_str(&json)?;
-	let mut last_modified = items
+	let new_last_modified = items
 		.get(0)
-		.map(|x| x.updated_at.clone())
-		.or_else(|| last_modified.map(|x| x.to_owned()));
-	if let Some(lm) = last_modified.as_mut() {
+		.map(|x| x.updated_at.clone());
+	let last_modified = if let Some(lm) = new_last_modified {
 		// parse and increase by one second
 		let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-		let mut dt = PrimitiveDateTime::parse(lm, format)?;
+		let mut dt = PrimitiveDateTime::parse(&lm, format)?;
 		dt += time::Duration::seconds(1);
-		*lm = dt.format(&format)?;
-	}
+		Some(dt.format(&format)?)
+	} else {
+		last_modified.map(|x| x.to_owned())
+	};
 	Ok((items, last_modified))
 }

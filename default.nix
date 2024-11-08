@@ -2,7 +2,7 @@
 
 rustPlatform.buildRustPackage {
   pname = "raspi-oled";
-  version = "unstable-infdev-6";
+  version = "unstable-infdev-7";
 
   src = ./.;
 
