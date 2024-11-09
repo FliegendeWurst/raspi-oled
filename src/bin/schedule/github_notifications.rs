@@ -41,9 +41,11 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 			if relevant.is_empty() {
 				return;
 			}
+			let max_lines = 8;
+			let max_line_length = 16;
 			let mut lines = vec![];
 			let mut relevant = relevant.into_iter();
-			while lines.len() < 8 {
+			while lines.len() < max_lines {
 				if let Some(x) = relevant.next() {
 					let url = x.subject.url;
 					let Some(url) = url else {
@@ -56,8 +58,10 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 						continue;
 					}
 					lines.push(format!("{} #{}", parts[5], parts[7]));
-					if lines.len() < 8 {
-						lines.push(format!(" {}", x.subject.title));
+					if lines.len() < max_lines {
+						let mut desc = format!(" {}", x.subject.title);
+						desc.truncate(desc.floor_char_boundary(max_line_length));
+						lines.push(desc);
 					}
 				} else {
 					break;
