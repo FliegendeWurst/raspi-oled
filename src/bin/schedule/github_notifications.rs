@@ -43,7 +43,7 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 			}
 			let mut lines = vec![];
 			let mut relevant = relevant.into_iter();
-			for _ in 0..8 {
+			while lines.len() < 8 {
 				if let Some(x) = relevant.next() {
 					let url = x.subject.url;
 					let Some(url) = url else {
@@ -56,6 +56,11 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 						continue;
 					}
 					lines.push(format!("{} #{}", parts[5], parts[7]));
+					if lines.len() < 8 {
+						lines.push(format!(" {}", x.subject.title));
+					}
+				} else {
+					break;
 				}
 			}
 			let remaining = relevant.count();
