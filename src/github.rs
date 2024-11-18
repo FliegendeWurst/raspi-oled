@@ -202,20 +202,18 @@ pub fn get_new_notifications(
 	pat: &str,
 	last_modified: Option<&str>,
 ) -> Result<(Vec<Notification>, Option<String>), Box<dyn Error>> {
-	let mut resp = ureq::get("https://api.github.com/notifications").set("Authorization", &format!("Bearer {pat}"));
+	let mut resp = ureq::get("https://api.github.com/notifications").header("Authorization", &format!("Bearer {pat}"));
 	if let Some(val) = last_modified {
-		resp = resp.set("If-Modified-Since", val);
+		resp = resp.header("If-Modified-Since", val);
 	}
-	let json = resp.call()?.into_string()?;
+	let json = resp.call()?.into_body().read_to_string()?;
 	let items: Vec<Notification> = serde_json::from_str(&json)?;
-	let new_last_modified = items
-		.get(0)
-		.map(|x| x.updated_at.clone());
+	let new_last_modified = items.get(0).map(|x| x.updated_at.clone());
 	let last_modified = if let Some(lm) = new_last_modified {
-		// parse and increase by one second
+		// parse and increase by five seconds
 		let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 		let mut dt = PrimitiveDateTime::parse(&lm, format)?;
-		dt += time::Duration::seconds(1);
+		dt += time::Duration::seconds(5);
 		Some(dt.format(&format)?)
 	} else {
 		last_modified.map(|x| x.to_owned())

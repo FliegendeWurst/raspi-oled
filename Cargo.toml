@@ -21,11 +21,11 @@ serde = "1.0.136"
 rppal = { version = "0.14.1", features = ["hal"] }
 ssd1351 = { git = "https://github.com/FliegendeWurst/ssd1351-rust", rev = "3de5be50bd9a59391c669aec8357923a56d121f6" }
 display-interface-spi = "0.4.1"
-ureq = { version = "2.4.0", default-features = false, features = ["tls"] }
+ureq = { version = "=3.0.0-rc2", default-features = false, features = ["rustls"] }
 winit = { version = "0.28.7", optional = true }
 softbuffer = { version = "0.3.1", optional = true }
 rand_xoshiro = "0.6.0"
-gpiocdev = "0.6.0"
+gpiocdev = "0.7.2"
 rpassword = "7.2.0"
 andotp-import = "0.1.0"
 totp-rs = "5.4.0"
@@ -34,7 +34,7 @@ color_space = "0.5.4"
 
 [features]
 pc = ["winit", "softbuffer", "image"]
-default = [ "pc" ]
+default = ["pc"]
 
 [profile.release]
 codegen-units = 1

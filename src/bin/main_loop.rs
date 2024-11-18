@@ -23,7 +23,7 @@ use rppal::{
 };
 use rusqlite::Connection;
 use schedule::{github_notifications::GithubNotifications, Schedule};
-use screensaver::{Screensaver, TimeDisplay};
+use screensaver::{BearReminder, Screensaver, TimeDisplay};
 use ssd1351::display::display::Ssd1351;
 use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
@@ -80,6 +80,7 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 			last_modified: RefCell::new(None),
 			last_call: RefCell::new(OffsetDateTime::now_utc().to_timezone(BERLIN) - time::Duration::seconds(50)),
 		}));
+		scheduled.push(Box::new(BearReminder::default()));
 		ContextDefault {
 			database: Rc::new(RefCell::new(database)),
 			screensavers,

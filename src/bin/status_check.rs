@@ -64,7 +64,7 @@ fn main() {
 		.success();
 	let sync_good = if nixos_up {
 		if let Ok(x) = ureq::get("http://nixos.fritz.box:12783/").call() {
-			x.status() < 400
+			x.status().as_u16() < 400
 		} else {
 			false
 		}

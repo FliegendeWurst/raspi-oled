@@ -4,6 +4,7 @@ use std::{
 	time::{self, Duration},
 };
 
+#[cfg(feature = "pc")]
 use embedded_graphics::{
 	draw_target::DrawTarget,
 	pixelcolor::Rgb565,

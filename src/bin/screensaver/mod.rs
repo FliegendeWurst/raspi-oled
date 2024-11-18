@@ -16,6 +16,7 @@ use rand_xoshiro::rand_core::RngCore;
 use time::{Duration, OffsetDateTime};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
+use crate::schedule::Schedule;
 use crate::{Draw, Rng};
 
 pub static SPEED: AtomicU64 = AtomicU64::new(32);
@@ -104,7 +105,7 @@ impl SimpleScreensaver {
 		}
 	}
 
-	pub fn draw_all<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, color: Rgb565) -> Result<(), D::Error> {
+	pub fn draw_all_colored<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, color: Rgb565) -> Result<(), D::Error> {
 		disp.fill_contiguous(
 			&Rectangle::new((0, 0).into(), (128, 128).into()),
 			(0..128 * 128).map(|idx| {
@@ -117,6 +118,26 @@ impl SimpleScreensaver {
 				} else {
 					Rgb565::BLACK
 				}
+			}),
+		)?;
+		Ok(())
+	}
+
+	pub fn draw_all<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, flipped: bool) -> Result<(), D::Error> {
+		disp.fill_contiguous(
+			&Rectangle::new((0, 0).into(), (128, 128).into()),
+			(0..128 * 128).map(|idx| {
+				let (mut red, mut green, mut blue) =
+					(self.data[3 * idx], self.data[3 * idx + 1], self.data[3 * idx + 2]);
+				if flipped {
+					red = 255 - red;
+					green = 255 - green;
+					blue = 255 - blue;
+				}
+				let r = red >> 3;
+				let g = green >> 2;
+				let b = blue >> 3;
+				Rgb565::new(r, g, b)
 			}),
 		)?;
 		Ok(())
@@ -215,6 +236,7 @@ pub static DUOLINGO: SimpleScreensaver = SimpleScreensaver::new("duolingo", incl
 pub static SPAGHETTI: SimpleScreensaver = SimpleScreensaver::new("spaghetti", include_bytes!("./spaghetti.raw"));
 pub static PLATE: SimpleScreensaver = SimpleScreensaver::new("plate", include_bytes!("./plate.raw"));
 pub static GITHUB: SimpleScreensaver = SimpleScreensaver::new("github", include_bytes!("./github.raw"));
+pub static TEDDY_BEAR: SimpleScreensaver = SimpleScreensaver::new("teddy_bear", include_bytes!("./teddy_bear.raw"));
 
 pub fn screensavers<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Screensaver<D>>> {
 	vec![
@@ -224,4 +246,53 @@ pub fn screensavers<D: DrawTarget<Color = Rgb565>>() -> Vec<Box<dyn Screensaver<
 		Box::new(SPAGHETTI.clone()),
 		Box::new(PLATE.clone()),
 	]
+}
+
+pub struct BearReminder;
+
+impl Default for BearReminder {
+	fn default() -> Self {
+		Self {}
+	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for BearReminder {
+	fn check(&self, _ctx: &dyn crate::Context<D>, time: OffsetDateTime) -> bool {
+		time.hour() == 21 && time.minute() == 30 && time.to_julian_day() % 2 == 1
+	}
+
+	fn execute(&self, ctx: &dyn crate::Context<D>, _time: OffsetDateTime) {
+		ctx.do_draw(Box::new(BearDraw { calls: RefCell::new(0) }));
+	}
+}
+
+struct BearDraw {
+	calls: RefCell<usize>,
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Draw<D> for BearDraw {
+	fn draw(&self, disp: &mut D, _rng: &mut Rng) -> Result<bool, <D as DrawTarget>::Error> {
+		let mut calls = self.calls.borrow_mut();
+		*calls += 1;
+
+		if *calls > 73 {
+			return Ok(false);
+		}
+
+		TEDDY_BEAR.draw_all(disp, *calls % 8 >= 4)?;
+
+		Ok(true)
+	}
+
+	fn expired(&self) -> bool {
+		*self.calls.borrow() > 110
+	}
+
+	fn as_any(&self) -> &dyn Any {
+		&*self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		&mut *self
+	}
 }

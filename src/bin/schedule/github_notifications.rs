@@ -93,10 +93,10 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 			let hue = calls as f64 / 40.0 * 360.0;
 			let hsv = Hsv::new(hue, 1.0, 1.0);
 			let rgb = hsv.to_rgb();
-            let r = rgb.r as u8 >> 3;
+			let r = rgb.r as u8 >> 3;
 			let g = rgb.g as u8 >> 2;
 			let b = rgb.b as u8 >> 3;
-			self.screen.draw_all(disp, Rgb565::new(r, g, b))?;
+			self.screen.draw_all_colored(disp, Rgb565::new(r, g, b))?;
 		} else {
 			disp.clear(Rgb565::BLACK)?;
 			// fit 9 lines
