@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicU32, AtomicU64};
+use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering};
 
 use embedded_graphics::mono_font::ascii::FONT_10X20;
 use embedded_graphics::prelude::RgbColor;
@@ -256,9 +256,21 @@ impl Default for BearReminder {
 	}
 }
 
+static LAST_REMINDER: AtomicI32 = AtomicI32::new(0);
+
 impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for BearReminder {
 	fn check(&self, _ctx: &dyn crate::Context<D>, time: OffsetDateTime) -> bool {
-		time.hour() == 21 && time.minute() == 30 && time.to_julian_day() % 2 == 1
+		let day = time.to_julian_day();
+		let good_time = time.hour() == 22 && time.minute() == 0 && day % 2 == 1;
+		if !good_time {
+			return false;
+		}
+		let last_day = LAST_REMINDER.load(Ordering::Relaxed);
+		if last_day == day {
+			return false;
+		}
+		let do_it = LAST_REMINDER.compare_exchange(last_day, day, Ordering::Relaxed, Ordering::Relaxed);
+		do_it.is_ok()
 	}
 
 	fn execute(&self, ctx: &dyn crate::Context<D>, _time: OffsetDateTime) {
