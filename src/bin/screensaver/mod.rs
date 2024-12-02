@@ -105,6 +105,12 @@ impl SimpleScreensaver {
 		}
 	}
 
+	pub fn get_pixel(&self, x: u32, y: u32) -> Rgb565 {
+		let idx = y as usize * 128 + x as usize;
+		let (red, green, blue) = (self.data[3 * idx], self.data[3 * idx + 1], self.data[3 * idx + 2]);
+		Rgb565::new(red >> 3, green >> 2, blue >> 3)
+	}
+
 	pub fn draw_all_colored<D: DrawTarget<Color = Rgb565>>(&self, disp: &mut D, color: Rgb565) -> Result<(), D::Error> {
 		disp.fill_contiguous(
 			&Rectangle::new((0, 0).into(), (128, 128).into()),
