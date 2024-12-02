@@ -95,7 +95,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 				.draw_all_colored(disp, Rgb565::new(0xff >> 3, 0xff >> 2, 0xff >> 3))?;
 		}
 		if calls < 70 {
-			let hue = calls as f64 / 40.0 * 360.0;
+			let hue = (rng.next_u32() % 360) as f64;
 			let hsv = Hsv::new(hue, 1.0, 1.0);
 			let rgb = hsv.to_rgb();
 			let r = rgb.r as u8 >> 3;
@@ -116,6 +116,9 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 			let mut circles = self.circles.borrow_mut();
 			for ((ox, oy), radius, color, points) in &mut *circles {
 				*radius += 1;
+				if *radius >= 20 {
+					continue;
+				}
 				let mut seen = HashSet::new();
 				let mut next_points = vec![];
 				loop {
@@ -157,6 +160,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 				)?;
 				*points = next_points;
 			}
+			circles.retain(|x| x.1 < 10);
 			circles.push(((x, y), 0, rgb, vec![(x, y)]));
 		} else {
 			let idx = calls - 70;
@@ -168,8 +172,12 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 				.text_color(Rgb565::WHITE)
 				.build();
 			for (y, line) in self.lines.iter().enumerate() {
-				let mut line = if calls >= 139 {
-					format!(" {line}")
+				let mut line = if calls >= 119 {
+					if y % 2 == 0 {
+						line.clone()
+					} else {
+						format!(" {line}")
+					}
 				} else if line.len() > max_line_length {
 					let line = format!("               {line} ");
 					line[line.ceil_char_boundary(idx % line.len())..].to_string()
@@ -181,7 +189,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
 			}
 		}
 		*self.calls.borrow_mut() += 1;
-		Ok(calls < 140)
+		Ok(calls < 120)
 	}
 
 	fn expired(&self) -> bool {
