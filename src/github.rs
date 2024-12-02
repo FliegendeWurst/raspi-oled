@@ -210,10 +210,10 @@ pub fn get_new_notifications(
 	let items: Vec<Notification> = serde_json::from_str(&json)?;
 	let new_last_modified = items.get(0).map(|x| x.updated_at.clone());
 	let last_modified = if let Some(lm) = new_last_modified {
-		// parse and increase by five seconds
+		// parse and increase by X seconds
 		let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
 		let mut dt = PrimitiveDateTime::parse(&lm, format)?;
-		dt += time::Duration::seconds(5);
+		dt += time::Duration::seconds(30); // wtf github
 		Some(dt.format(&format)?)
 	} else {
 		last_modified.map(|x| x.to_owned())
