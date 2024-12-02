@@ -37,6 +37,4 @@ pc = ["winit", "softbuffer", "image"]
 default = ["pc"]
 
 [profile.release]
-codegen-units = 1
-debug = true
-lto = true
+debug = false
