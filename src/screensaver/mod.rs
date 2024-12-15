@@ -68,9 +68,9 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for SimpleScreensaver {
 				let r;
 				let g;
 				let b;
-				r = (red >> 3).overflowing_add(color as u8 & 0b11).0;
-				g = (green >> 2).overflowing_add(((color >> 2) & 0b11) as u8).0;
-				b = (blue >> 3).overflowing_add(((color >> 4) & 0b11) as u8).0;
+				r = (red >> 3).saturating_add(color as u8 & 0b11).min(0b11111);
+				g = (green >> 2).saturating_add(((color >> 2) & 0b11) as u8).min(0b111111);
+				b = (blue >> 3).saturating_add(((color >> 4) & 0b11) as u8).min(0b11111);
 				let p = Rectangle::new(Point::new(x as i32 + dx, y as i32 + dy), Size::new(1, 1));
 				let s = PrimitiveStyleBuilder::new().fill_color(Rgb565::new(r, g, b)).build();
 				p.draw_styled(&s, disp)?;
