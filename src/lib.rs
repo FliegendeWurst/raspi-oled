@@ -1,3 +1,5 @@
+#![feature(round_char_boundary)]
+
 use std::{
 	sync::atomic::AtomicBool,
 	thread::sleep,
@@ -18,7 +20,12 @@ use gpiocdev::{
 #[cfg(feature = "pc")]
 use image::{ImageBuffer, Rgb};
 
+pub mod action;
+pub mod context;
+pub mod draw;
 pub mod github;
+pub mod schedule;
+pub mod screensaver;
 
 #[cfg(feature = "pc")]
 pub struct FrameOutput {

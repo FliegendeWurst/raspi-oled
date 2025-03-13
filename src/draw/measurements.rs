@@ -13,10 +13,13 @@ use embedded_graphics::{
 	text::{renderer::CharacterStyle, Text},
 	Drawable,
 };
-use raspi_oled::Events;
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
 
-use crate::{screensaver::Screensaver, Context, ContextDefault, Draw, BLACK};
+use crate::{
+	context::{Context, ContextDefault, Draw, Rng, BLACK},
+	screensaver::Screensaver,
+	Events,
+};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
 
 static CLOCK_FONT: MonoFont = MonoFont {
@@ -85,7 +88,7 @@ impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for Measurements {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
-	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, _rng: &mut crate::Rng) -> Result<bool, D::Error> {
+	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, _rng: &mut Rng) -> Result<bool, D::Error> {
 		if self.drawn.load(std::sync::atomic::Ordering::Relaxed) {
 			return Ok(false);
 		}
@@ -417,7 +420,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 		Ok(true)
 	}
 
-	fn draw(&self, _disp: &mut D, _rng: &mut crate::Rng) -> Result<bool, <D as DrawTarget>::Error> {
+	fn draw(&self, _disp: &mut D, _rng: &mut Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		panic!("draw without ctx");
 	}
 

@@ -16,8 +16,8 @@ use rand_xoshiro::rand_core::RngCore;
 use time::{Duration, OffsetDateTime};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
+use crate::context::{Context, Draw, Rng};
 use crate::schedule::Schedule;
-use crate::{Draw, Rng};
 
 pub static SPEED: AtomicU64 = AtomicU64::new(32);
 
@@ -265,7 +265,7 @@ impl Default for BearReminder {
 static LAST_REMINDER: AtomicI32 = AtomicI32::new(0);
 
 impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for BearReminder {
-	fn check(&self, _ctx: &dyn crate::Context<D>, time: OffsetDateTime) -> bool {
+	fn check(&self, _ctx: &dyn Context<D>, time: OffsetDateTime) -> bool {
 		let day = time.to_julian_day();
 		let good_time = time.hour() == 22 && time.minute() == 0 && day % 2 == 1;
 		if !good_time {
@@ -279,7 +279,7 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for BearReminder {
 		do_it.is_ok()
 	}
 
-	fn execute(&self, ctx: &dyn crate::Context<D>, _time: OffsetDateTime) {
+	fn execute(&self, ctx: &dyn Context<D>, _time: OffsetDateTime) {
 		ctx.do_draw(Box::new(BearDraw { calls: RefCell::new(0) }));
 	}
 }

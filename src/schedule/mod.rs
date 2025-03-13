@@ -1,7 +1,7 @@
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use time::OffsetDateTime;
 
-use crate::{action::Action, Context};
+use crate::{action::Action, context::Context};
 
 pub mod github_notifications;
 

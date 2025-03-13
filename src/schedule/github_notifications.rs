@@ -10,11 +10,11 @@ use embedded_graphics::{
 	Drawable, Pixel,
 };
 use rand_xoshiro::rand_core::RngCore;
-use raspi_oled::github::get_new_notifications;
 
 use crate::{
+	context::{Context, Draw, Rng},
+	github::get_new_notifications,
 	screensaver::{SimpleScreensaver, GITHUB},
-	Draw,
 };
 
 use super::Schedule;
@@ -26,12 +26,12 @@ pub struct GithubNotifications {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
-	fn check(&self, _ctx: &dyn crate::Context<D>, time: time::OffsetDateTime) -> bool {
+	fn check(&self, _ctx: &dyn Context<D>, time: time::OffsetDateTime) -> bool {
 		let time_since_last = time - *self.last_call.borrow();
 		time_since_last.whole_minutes() >= 1
 	}
 
-	fn execute(&self, ctx: &dyn crate::Context<D>, time: time::OffsetDateTime) {
+	fn execute(&self, ctx: &dyn Context<D>, time: time::OffsetDateTime) {
 		*self.last_call.borrow_mut() = time;
 		let last_modified = self.last_modified.borrow().clone();
 		if let Ok((notifications, last_modified)) = get_new_notifications(&self.pat, last_modified.as_deref()) {
@@ -88,7 +88,7 @@ struct GithubNotificationsDraw {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for GithubNotificationsDraw {
-	fn draw(&self, disp: &mut D, rng: &mut crate::Rng) -> Result<bool, D::Error> {
+	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
 		let calls = *self.calls.borrow();
 		if calls == 0 {
 			self.screen

@@ -13,7 +13,10 @@ use embedded_graphics::{
 };
 use totp_rs::TOTP;
 
-use crate::{screensaver::Screensaver, Draw, BLACK};
+use crate::{
+	context::{Draw, Rng, BLACK},
+	screensaver::Screensaver,
+};
 
 #[derive(Debug, Clone)]
 pub struct Totp {
@@ -54,7 +57,7 @@ impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for Totp {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Totp {
-	fn draw(&self, disp: &mut D, _rng: &mut crate::Rng) -> Result<bool, <D as DrawTarget>::Error> {
+	fn draw(&self, disp: &mut D, _rng: &mut Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		let codes: Vec<_> = self
 			.secrets
 			.iter()

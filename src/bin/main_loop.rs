@@ -1,40 +1,28 @@
-#![feature(array_windows, round_char_boundary)]
+#![feature(array_windows)]
 
 use std::{
-	any::Any,
-	cell::RefCell,
-	env,
-	rc::Rc,
-	thread,
+	env, thread,
 	time::{Duration, Instant},
 };
 
-use action::Action;
 use display_interface_spi::SPIInterfaceNoCS;
-use draw::Totp;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
+use raspi_oled::draw::Totp;
+use raspi_oled::{
+	action::Action,
+	context::{Context, ContextDefault},
+};
 use raspi_oled::{disable_pwm, enable_pwm, PWM_ON};
 use rppal::{
 	gpio::{Gpio, OutputPin},
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
-use rusqlite::Connection;
-use schedule::{github_notifications::GithubNotifications, Schedule};
-use screensaver::{BearReminder, Screensaver, TimeDisplay};
 use ssd1351::display::display::Ssd1351;
-use time::OffsetDateTime;
-use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
-
-mod action;
-mod draw;
-mod schedule;
-mod screensaver;
 
 pub type Oled = Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>;
-pub type Rng = Xoroshiro128StarStar;
 
 static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
 /// Delay after drawing a frame in milliseconds.
@@ -45,113 +33,6 @@ fn main() {
 		rpi_main();
 	} else {
 		pc_main();
-	}
-}
-
-pub trait Context<D: DrawTarget<Color = Rgb565>> {
-	fn do_draw(&self, drawable: Box<dyn Draw<D>>);
-
-	fn do_action(&self, action: Action);
-
-	fn active_count(&self) -> usize;
-
-	fn database(&self) -> Rc<RefCell<Connection>>;
-
-	fn enable_pwm(&self);
-}
-
-pub struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
-	screensavers: Vec<Box<dyn Screensaver<D>>>,
-	scheduled: Vec<Box<dyn Schedule<D>>>,
-	active: RefCell<Vec<Box<dyn Draw<D>>>>,
-	database: Rc<RefCell<Connection>>,
-}
-
-impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
-	fn new() -> Self {
-		let mut screensavers = screensaver::screensavers();
-		screensavers.push(Box::new(draw::Measurements::default()));
-		screensavers.push(Box::new(draw::Measurements::temps()));
-		screensavers.push(Box::new(draw::Measurements::events()));
-		let database = Connection::open("sensors.db").expect("failed to open database");
-		let mut scheduled = schedule::reminders();
-		scheduled.push(Box::new(GithubNotifications {
-			pat: env::var("GITHUB_PAT").expect("no env var GITHUB_PAT set"),
-			last_modified: RefCell::new(None),
-			last_call: RefCell::new(OffsetDateTime::now_utc().to_timezone(BERLIN) - time::Duration::seconds(50)),
-		}));
-		//scheduled.push(Box::new(BearReminder::default()));
-		ContextDefault {
-			database: Rc::new(RefCell::new(database)),
-			screensavers,
-			scheduled,
-			active: RefCell::new(vec![Box::new(TimeDisplay::new())]),
-		}
-	}
-
-	fn add(&mut self, totp: Totp) {
-		self.screensavers.push(Box::new(totp));
-	}
-
-	fn loop_iter(&mut self, disp: &mut D, rng: &mut Rng) -> bool {
-		let time = OffsetDateTime::now_utc().to_timezone(BERLIN);
-		// check schedules
-		for s in &self.scheduled {
-			s.check_and_do(&*self, time);
-		}
-		let active = self.active.borrow();
-		if active.is_empty() {
-			return false;
-		}
-		let a = active.last().unwrap();
-		if !a.expired() {
-			return a.draw_with_ctx(self, disp, rng).unwrap_or(true);
-		}
-		drop(active);
-		self.active.borrow_mut().pop();
-		disable_pwm().unwrap();
-		self.loop_iter(disp, rng)
-	}
-
-	fn pop_action_and_clear(&mut self, disp: &mut D) -> Result<(), D::Error> {
-		let active = self.active.get_mut();
-		if active.len() > 1 {
-			active.pop();
-			disp.clear(BLACK)?;
-		}
-		Ok(())
-	}
-}
-
-impl<D: DrawTarget<Color = Rgb565>> Context<D> for ContextDefault<D> {
-	fn do_draw(&self, drawable: Box<dyn Draw<D>>) {
-		self.active.borrow_mut().push(drawable);
-	}
-
-	fn do_action(&self, action: Action) {
-		match action {
-			Action::Screensaver(id) => {
-				for s in &self.screensavers {
-					if s.id() == id {
-						self.active.borrow_mut().push(s.convert_draw());
-						return;
-					}
-				}
-				println!("warning: screensaver not found");
-			},
-		}
-	}
-
-	fn active_count(&self) -> usize {
-		self.active.borrow().len()
-	}
-
-	fn database(&self) -> Rc<RefCell<Connection>> {
-		self.database.clone()
-	}
-
-	fn enable_pwm(&self) {
-		enable_pwm().unwrap();
 	}
 }
 
@@ -169,7 +50,10 @@ fn pc_main() {
 		window::WindowBuilder,
 	};
 
-	use raspi_oled::FrameOutput;
+	use raspi_oled::{
+		context::{Context, ContextDefault},
+		screensaver, FrameOutput,
+	};
 
 	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
 	for [key, val] in args.array_windows() {
@@ -266,18 +150,6 @@ fn pc_main() {
 			_ => (),
 		}
 	});
-}
-
-pub trait Draw<D: DrawTarget<Color = Rgb565>> {
-	fn draw_with_ctx(&self, _ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
-		self.draw(disp, rng)
-	}
-	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
-	fn expired(&self) -> bool {
-		false
-	}
-	fn as_any(&self) -> &dyn Any;
-	fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 fn rpi_main() {
