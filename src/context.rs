@@ -12,7 +12,7 @@ use crate::{
 	draw::{self, Totp},
 	enable_pwm,
 	schedule::{self, github_notifications::GithubNotifications, Schedule},
-	screensaver::{self, Screensaver, TimeDisplay},
+	screensaver::{self, BearReminder, Screensaver, TimeDisplay},
 };
 
 pub static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
@@ -63,7 +63,7 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 			last_modified: RefCell::new(None),
 			last_call: RefCell::new(OffsetDateTime::now_utc().to_timezone(BERLIN) - time::Duration::seconds(50)),
 		}));
-		//scheduled.push(Box::new(BearReminder::default()));
+		scheduled.push(Box::new(BearReminder::default()));
 		ContextDefault {
 			database: Rc::new(RefCell::new(database)),
 			screensavers,

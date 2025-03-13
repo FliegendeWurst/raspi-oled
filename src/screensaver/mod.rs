@@ -13,7 +13,7 @@ use embedded_graphics::{
 	Drawable,
 };
 use rand_xoshiro::rand_core::RngCore;
-use time::{Duration, OffsetDateTime};
+use time::{Duration, OffsetDateTime, Weekday};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
 use crate::context::{Context, Draw, Rng};
@@ -266,16 +266,19 @@ static LAST_REMINDER: AtomicI32 = AtomicI32::new(0);
 
 impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for BearReminder {
 	fn check(&self, _ctx: &dyn Context<D>, time: OffsetDateTime) -> bool {
-		let day = time.to_julian_day();
-		let good_time = time.hour() == 22 && time.minute() == 0 && day % 2 == 1;
+		let day = time.weekday();
+		let day_match = day == Weekday::Monday || day == Weekday::Wednesday || day == Weekday::Friday;
+		let good_time =
+			time.hour() == 20 && (time.minute() == 0 || time.minute() == 30 || time.minute() == 55) && day_match;
 		if !good_time {
 			return false;
 		}
+		let day_j = time.to_julian_day();
 		let last_day = LAST_REMINDER.load(Ordering::Relaxed);
-		if last_day == day {
+		if last_day == day_j {
 			return false;
 		}
-		let do_it = LAST_REMINDER.compare_exchange(last_day, day, Ordering::Relaxed, Ordering::Relaxed);
+		let do_it = LAST_REMINDER.compare_exchange(last_day, day_j, Ordering::Relaxed, Ordering::Relaxed);
 		do_it.is_ok()
 	}
 

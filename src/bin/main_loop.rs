@@ -116,10 +116,10 @@ fn pc_main() {
 				// It's preferable for applications that do not render continuously to render in
 				// this event rather than in MainEventsCleared, since rendering in here allows
 				// the program to gracefully handle redraws requested by the OS.
-				let (width, height) = {
-					let size = window.inner_size();
-					(size.width, size.height)
-				};
+
+				// ignore window.inner_size() for HiDPI scaling
+				let width = 128;
+				let height = 128;
 				surface
 					.resize(NonZeroU32::new(width).unwrap(), NonZeroU32::new(height).unwrap())
 					.unwrap();

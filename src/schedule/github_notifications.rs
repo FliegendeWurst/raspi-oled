@@ -34,7 +34,8 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 	fn execute(&self, ctx: &dyn Context<D>, time: time::OffsetDateTime) {
 		*self.last_call.borrow_mut() = time;
 		let last_modified = self.last_modified.borrow().clone();
-		if let Ok((notifications, last_modified)) = get_new_notifications(&self.pat, last_modified.as_deref()) {
+		let new = get_new_notifications(&self.pat, last_modified.as_deref());
+		if let Ok((notifications, last_modified)) = new {
 			*self.last_modified.borrow_mut() = last_modified;
 			let relevant: Vec<_> = notifications
 				.into_iter()
@@ -76,6 +77,8 @@ impl<D: DrawTarget<Color = Rgb565>> Schedule<D> for GithubNotifications {
 				lines,
 				circles: RefCell::new(vec![]),
 			}));
+		} else {
+			eprintln!("error: {new:?}");
 		}
 	}
 }
