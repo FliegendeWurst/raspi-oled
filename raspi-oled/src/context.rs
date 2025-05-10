@@ -1,7 +1,8 @@
-use std::{any::Any, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use rand_xoshiro::Xoroshiro128StarStar;
+use raspi_lib::{Draw, Screensaver, TimeDisplay};
 use rusqlite::Connection;
 use time::OffsetDateTime;
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
@@ -9,10 +10,10 @@ use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 use crate::{
 	action::Action,
 	disable_pwm,
-	draw::{self, Totp},
+	draw::{self, Measurements, Totp},
 	enable_pwm,
 	schedule::{self, github_notifications::GithubNotifications, Schedule},
-	screensaver::{self, BearReminder, Screensaver, TimeDisplay},
+	screensaver::{self, BearReminder},
 };
 
 pub static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
@@ -31,16 +32,10 @@ pub trait Context<D: DrawTarget<Color = Rgb565>> {
 	fn enable_pwm(&self);
 }
 
-pub trait Draw<D: DrawTarget<Color = Rgb565>> {
+pub trait DrawWithContext<D: DrawTarget<Color = Rgb565>> : Draw<D> {
 	fn draw_with_ctx(&self, _ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
 		self.draw(disp, rng)
 	}
-	fn draw(&self, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error>;
-	fn expired(&self) -> bool {
-		false
-	}
-	fn as_any(&self) -> &dyn Any;
-	fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub struct ContextDefault<D: DrawTarget<Color = Rgb565>> {
@@ -88,7 +83,12 @@ impl<D: DrawTarget<Color = Rgb565>> ContextDefault<D> {
 		}
 		let a = active.last().unwrap();
 		if !a.expired() {
-			return a.draw_with_ctx(self, disp, rng).unwrap_or(true);
+			let measure: Option<&Measurements> = a.as_any().downcast_ref();
+			if let Some(measure) = measure {
+				return measure.draw_with_ctx(self, disp, rng).unwrap_or(true);
+			} else {
+				return a.draw(disp, rng).unwrap_or(true);
+			}
 		}
 		drop(active);
 		self.active.borrow_mut().pop();

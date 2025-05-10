@@ -9,7 +9,7 @@ use embedded_graphics::{mono_font::MonoTextStyleBuilder, pixelcolor::Rgb565, pre
 use time::{Duration, OffsetDateTime};
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
 
-use crate::context::{Draw, Rng};
+use crate::{Draw, Rng};
 
 use super::Screensaver;
 

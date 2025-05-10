@@ -13,11 +13,11 @@ use embedded_graphics::{
 	text::{renderer::CharacterStyle, Text},
 	Drawable,
 };
+use raspi_lib::{Draw, Screensaver};
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
-	context::{Context, ContextDefault, Draw, Rng, BLACK},
-	screensaver::Screensaver,
+	context::{Context, ContextDefault, DrawWithContext, Rng, BLACK},
 	Events,
 };
 use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt, PrimitiveDateTimeExt};
@@ -87,7 +87,7 @@ impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for Measurements {
 	}
 }
 
-impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
+impl<D: DrawTarget<Color = Rgb565>> DrawWithContext<D> for Measurements {
 	fn draw_with_ctx(&self, ctx: &ContextDefault<D>, disp: &mut D, _rng: &mut Rng) -> Result<bool, D::Error> {
 		if self.drawn.load(std::sync::atomic::Ordering::Relaxed) {
 			return Ok(false);
@@ -419,6 +419,9 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 
 		Ok(true)
 	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
 
 	fn draw(&self, _disp: &mut D, _rng: &mut Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		panic!("draw without ctx");

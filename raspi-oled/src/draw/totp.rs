@@ -11,12 +11,10 @@ use embedded_graphics::{
 	text::Text,
 	Drawable,
 };
+use raspi_lib::{Draw, Screensaver};
 use totp_rs::TOTP;
 
-use crate::{
-	context::{Draw, Rng, BLACK},
-	screensaver::Screensaver,
-};
+use crate::context::{Rng, BLACK};
 
 #[derive(Debug, Clone)]
 pub struct Totp {

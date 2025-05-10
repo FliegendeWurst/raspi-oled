@@ -61,6 +61,7 @@
             version = "0-unstable" + lib.optionalString (self ? version) "-${self.version}";
 
             src = ./.;
+            buildAndTestSubdir = "raspi-oled";
 
             cargoLock = {
               lockFile = ./Cargo.lock;
@@ -88,6 +89,40 @@
               license = licenses.gpl3Plus;
               maintainers = with maintainers; [ fliegendewurst ];
               mainProgram = "main_loop";
+            };
+          };
+
+          music = pkgs.rustPlatform.buildRustPackage {
+            pname = "music";
+            version = "0-unstable" + lib.optionalString (self ? version) "-${self.version}";
+
+            src = ./.;
+            buildAndTestSubdir = "music";
+
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+              outputHashes = {
+                "ssd1351-0.3.0" = "sha256-DD7+NhYwUwD/xC+7ZUNKdhcfsSCOQ9NVEy9lcS47Q5E=";
+              };
+            };
+
+            nativeBuildInputs = with nixpkgsFor.${lib.elemAt (lib.splitString "-cross-" system) 0}; [
+              rustPlatform.bindgenHook
+            ];
+
+            buildInputs = with pkgs; [ ];
+
+            buildNoDefaultFeatures = true;
+            checkNoDefaultFeatures = true;
+
+            env.RUSTC_BOOTSTRAP = "1";
+
+            meta = with lib; {
+              description = "music";
+              homepage = "https://github.com/FliegendeWurst/raspi-oled";
+              license = licenses.gpl3Plus;
+              maintainers = with maintainers; [ fliegendewurst ];
+              mainProgram = "music";
             };
           };
         }

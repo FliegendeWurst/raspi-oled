@@ -30,6 +30,7 @@ andotp-import = "0.1.0"
 totp-rs = "5.4.0"
 color_space = "0.5.4"
 #gpio-am2302-rs = { git = "https://github.com/FliegendeWurst/gpio-am2302-rs" }
+raspi-lib = { path = "../raspi-lib" }
 
 [features]
 pc = ["winit", "softbuffer", "image"]

@@ -10,9 +10,10 @@ use embedded_graphics::{
 	Drawable, Pixel,
 };
 use rand_xoshiro::rand_core::RngCore;
+use raspi_lib::Draw;
 
 use crate::{
-	context::{Context, Draw, Rng},
+	context::{Context, Rng},
 	github::get_new_notifications,
 	screensaver::{SimpleScreensaver, GITHUB},
 };

@@ -7,25 +7,15 @@ use embedded_graphics::{
 	pixelcolor::Rgb565,
 	prelude::{DrawTarget, Point, Size},
 	primitives::{PrimitiveStyleBuilder, Rectangle, StyledDrawable},
-	text::Text,
-	Drawable,
 };
 use rand_xoshiro::rand_core::RngCore;
-use time::{Duration, OffsetDateTime, Weekday};
-use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
+use raspi_lib::{Draw, Screensaver};
+use time::{OffsetDateTime, Weekday};
 
-use crate::context::{Context, Draw, Rng};
+use crate::context::{Context, Rng};
 use crate::schedule::Schedule;
 
-mod time_display;
-pub use time_display::TimeDisplay;
-
 pub static SPEED: AtomicU64 = AtomicU64::new(32);
-
-pub trait Screensaver<D: DrawTarget<Color = Rgb565>>: Draw<D> {
-	fn id(&self) -> &'static str;
-	fn convert_draw(&self) -> Box<dyn Draw<D>>;
-}
 
 #[derive(Debug)]
 pub struct SimpleScreensaver {
