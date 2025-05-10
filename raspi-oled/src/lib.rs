@@ -264,7 +264,7 @@ pub fn enable_pwm() -> Result<(), rppal::pwm::Error> {
 
 pub static PWM_ON: AtomicBool = AtomicBool::new(false);
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct Events {
