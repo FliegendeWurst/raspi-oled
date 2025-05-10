@@ -178,10 +178,18 @@ difference() {
 union() {
     hat();
     translate([0,0,97.8]) cube([55,16,1.4], center=true);
+    translate([0, 15.3, 90-2]) aligned_cube([64,5,2], [0,1,1]);
+    translate([-11.5/2,-15.35,86.5]) cube([11.5,6,12]);
     }
-    print9();
-    translate([0,4,90]) aligned_cube([12,5,10]);
+    translate([-9.5/2,-15,88.5]) cube([9.5,4,10]);
+    translate([0,4,0]) {
+        print9();
+        translate([0,4,90]) aligned_cube([12,5,10]);
     }
+    translate([0, 15.36, 90]) cube([5,5,1]);
+    translate([-25, 15.36, 90]) cube([5,5,1]);
+    mirror([1,0,0]) translate([-25, 15.36, 90]) cube([5,5,1]);
+}
 }
 module pyramid() {
 difference() {
@@ -254,6 +262,9 @@ union() {
 translate([-34.4, 16.91, 90]) cube([34.4*2,66.18,1]);
 translate([-34.4, 14, 90]) cube([5,72,1]);
 translate([29.4, 14, 90]) cube([5,72,1]);
+translate([0, 15.36, 90]) cube([5,5,1]);
+    translate([-25, 15.36, 90]) cube([5,5,1]);
+    mirror([1,0,0]) translate([-25, 15.36, 90]) cube([5,5,1]);
 mi = 8;
 for (i = [0 : mi]) {
     translate([0, 30, 90-i-.5]) cube([22+(mi-i)/2,13+(mi-i)/2,1], center=true);
@@ -376,6 +387,17 @@ translate([-40.4+4+.6,45-1,76]) cube([1.4,2.8+.8,1.4]);
 }
 }
 }
-print5();
-print7();
-print6();
+module print5_stl() {
+    rotate([0,180,0]) print5();
+}
+module print3_stl() {
+    rotate([0,180,0]) print3();
+}
+//print5();
+//print3();
+//print9();
+//all();
+print3_stl();
+//print2();
+//print9();
+//print5_stl();

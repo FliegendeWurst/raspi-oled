@@ -1,9 +1,10 @@
 with (import <nixpkgs> {});
 mkShell {
   buildInputs = [
-    pkgsCross.muslpi.stdenv.cc
-    pkgsCross.muslpi.sqlite
+    #pkgsCross.muslpi.stdenv.cc
+    #pkgsCross.muslpi.sqlite
+    pkgs.sqlite
   ];
-  CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${pkgsCross.muslpi.stdenv.cc}/bin/armv6l-unknown-linux-musleabihf-ld";
+  #CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${pkgsCross.muslpi.stdenv.cc}/bin/armv6l-unknown-linux-musleabihf-ld";
   #TARGET_CC = "${pkgsCross.muslpi.stdenv.cc}/bin/armv6l-unknown-linux-musleabihf-cc";
 }

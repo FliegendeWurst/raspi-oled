@@ -2,7 +2,7 @@
 
 rustPlatform.buildRustPackage {
   pname = "raspi-oled";
-  version = "unstable-infdev-7";
+  version = "unstable-infdev-18";
 
   src = ./.;
 
@@ -10,17 +10,16 @@ rustPlatform.buildRustPackage {
     lockFile = ./Cargo.lock;
     outputHashes = {
       "ssd1351-0.3.0" = "sha256-DD7+NhYwUwD/xC+7ZUNKdhcfsSCOQ9NVEy9lcS47Q5E=";
-	  # "gpio-am2302-rs-1.1.0" = "sha256-tyA/R80LtWIXoVEoxHhkmzy0IsMdMH1Oi3FTQ56XjyQ=";
     };
   };
 
   nativeBuildInputs = [ pkg-config ];
 
-  cargoBuildFlags = [ "--no-default-features" "--bin" "main_loop" ];
+  cargoBuildFlags = [ "--no-default-features" "--bin" "main_loop" "--bin" "take_measurement" ];
 
   buildInputs = [ sqlite ];
 
-  RUSTC_BOOTSTRAP = "1";
+  env.RUSTC_BOOTSTRAP = "1";
 
   meta = with lib; {
     description = "OLED display of clock/calendar/temperature";
