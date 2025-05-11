@@ -45,7 +45,7 @@ fn main() {
 			lines
 				.with_line(line)
 				.with_edge_detection(EdgeDetection::RisingEdge)
-				.with_debounce_period(Duration::from_millis(200))
+				.with_debounce_period(Duration::from_millis(50))
 				.with_bias(Bias::PullDown);
 		}
 		let lines = lines.request().unwrap();
