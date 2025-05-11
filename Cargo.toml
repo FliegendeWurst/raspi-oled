@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "music", "raspi-lib","raspi-oled"]
+members = [ "frame-output", "music", "raspi-lib","raspi-oled"]
 
 [profile.release]
 debug = false

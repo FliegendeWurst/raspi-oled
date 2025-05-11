@@ -94,7 +94,7 @@
 
           music = pkgs.rustPlatform.buildRustPackage {
             pname = "music";
-            version = "0-unstable" + lib.optionalString (self ? version) "-${self.version}";
+            version = "0-unstable-${version}";
 
             src = ./.;
             buildAndTestSubdir = "music";
@@ -103,6 +103,7 @@
               lockFile = ./Cargo.lock;
               outputHashes = {
                 "ssd1351-0.3.0" = "sha256-DD7+NhYwUwD/xC+7ZUNKdhcfsSCOQ9NVEy9lcS47Q5E=";
+                "playerctl-rust-wrapper-0.1.0" = "";
               };
             };
 

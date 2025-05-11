@@ -8,3 +8,12 @@ display-interface-spi = "0.4.1"
 rppal = { version = "0.14.1", features = ["hal"] }
 ssd1351 = { git = "https://github.com/FliegendeWurst/ssd1351-rust", rev = "3de5be50bd9a59391c669aec8357923a56d121f6" }
 raspi-lib = { path = "../raspi-lib" }
+playerctl-rust-wrapper = { git = "https://github.com/FliegendeWurst/playerctl-rust-wrapper", rev = "176d2d99a384449dc92d58498f91b6c0140e00e8" }
+image = { version = "0.25.6", default-features = false, features = ["png", "jpeg"] }
+winit = { version = "0.28.7", optional = true }
+softbuffer = { version = "0.3.1", optional = true }
+frame-output = { path = "../frame-output", optional = true }
+
+[features]
+default = ["pc"]
+pc = ["winit", "softbuffer", "frame-output"]
