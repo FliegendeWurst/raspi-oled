@@ -1,4 +1,4 @@
-#![feature(round_char_boundary)]
+#![feature(round_char_boundary, hash_extract_if)]
 
 use std::{env, fmt::Debug, time::Duration};
 
