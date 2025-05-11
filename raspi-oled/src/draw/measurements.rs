@@ -422,7 +422,6 @@ impl<D: DrawTarget<Color = Rgb565>> DrawWithContext<D> for Measurements {
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Measurements {
-
 	fn draw(&self, _disp: &mut D, _rng: &mut Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		panic!("draw without ctx");
 	}

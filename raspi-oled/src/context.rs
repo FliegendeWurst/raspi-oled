@@ -32,7 +32,7 @@ pub trait Context<D: DrawTarget<Color = Rgb565>> {
 	fn enable_pwm(&self);
 }
 
-pub trait DrawWithContext<D: DrawTarget<Color = Rgb565>> : Draw<D> {
+pub trait DrawWithContext<D: DrawTarget<Color = Rgb565>>: Draw<D> {
 	fn draw_with_ctx(&self, _ctx: &ContextDefault<D>, disp: &mut D, rng: &mut Rng) -> Result<bool, D::Error> {
 		self.draw(disp, rng)
 	}

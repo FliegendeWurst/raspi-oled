@@ -78,24 +78,24 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for MpvStatus {
 		let mut positions = self.positions.lock().unwrap();
 		let mut fetched = self.fetched.lock().unwrap();
 		let mut buffer_dirty = false;
-        let mut metadata_changed = false;
-        let mut positions_changed = false;
+		let mut metadata_changed = false;
+		let mut positions_changed = false;
 		if now.duration_since(*fetched).as_secs() > 10 {
 			*fetched = now;
 			if let Ok(mut new_metadata) = Playerctl::metadata() {
-                new_metadata.extract_if(|k, _v| k != "mpv").for_each(|_| {});
-                if new_metadata != *metadata {
-                    metadata_changed = true;
-                }
+				new_metadata.extract_if(|k, _v| k != "mpv").for_each(|_| {});
+				if new_metadata != *metadata {
+					metadata_changed = true;
+				}
 				*metadata = new_metadata;
 			} else {
 				metadata.clear();
 			}
 			if let Ok(mut new_positions) = Playerctl::get_position() {
-                new_positions.extract_if(|k, _v| k != "mpv").for_each(|_| {});
-                if new_positions != *positions {
-                    positions_changed = true;
-                }
+				new_positions.extract_if(|k, _v| k != "mpv").for_each(|_| {});
+				if new_positions != *positions {
+					positions_changed = true;
+				}
 				*positions = new_positions;
 			} else {
 				positions.clear();
@@ -170,7 +170,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for MpvStatus {
 				let secs = prog / 1_000_000;
 				let len = format!("{}:{:0>2}", secs / 60, secs % 60);
 				Text::new(&len, Point::new(124 - 10 * len.len() as i32, 64 - 20), font).draw(disp)?;
-                buffer_dirty |= positions_changed || metadata_changed;
+				buffer_dirty |= positions_changed || metadata_changed;
 			}
 			if let Some(len) = d.mpris_length {
 				disp.fill_solid(&Rectangle::new((68, 64 - 0 - 15).into(), (128 - 68, 20).into()), BLACK)?;

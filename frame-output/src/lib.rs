@@ -1,4 +1,8 @@
-use embedded_graphics::{pixelcolor::Rgb565, prelude::{Dimensions, DrawTarget, RgbColor}, primitives::Rectangle};
+use embedded_graphics::{
+	pixelcolor::Rgb565,
+	prelude::{Dimensions, DrawTarget, RgbColor},
+	primitives::Rectangle,
+};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, Rgb, Rgba};
 
 pub struct FrameOutput {
@@ -44,7 +48,12 @@ impl DrawTarget for FrameOutput {
 	}
 
 	fn fill_solid(&mut self, area: &Rectangle, color: Self::Color) -> Result<(), Self::Error> {
-		let mut sub = self.buffer.sub_image(area.top_left.x as _, area.top_left.y as _, area.size.width, area.size.height);
+		let mut sub = self.buffer.sub_image(
+			area.top_left.x as _,
+			area.top_left.y as _,
+			area.size.width,
+			area.size.height,
+		);
 		let rgb = Rgba([color.r() << 3, color.g() << 2, color.b() << 3, 0xff]);
 		for y in 0..sub.height() {
 			for x in 0..sub.width() {
@@ -57,6 +66,6 @@ impl DrawTarget for FrameOutput {
 
 impl Dimensions for FrameOutput {
 	fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
-		Rectangle::new((0,0).into(), (self.buffer.width(), self.buffer.height()).into())
+		Rectangle::new((0, 0).into(), (self.buffer.width(), self.buffer.height()).into())
 	}
 }

@@ -1,14 +1,14 @@
 use std::any::Any;
 use std::cell::RefCell;
 
+use embedded_graphics::Drawable;
 use embedded_graphics::prelude::Point;
 use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
 use embedded_graphics::{mono_font::MonoTextStyleBuilder, pixelcolor::Rgb565, prelude::DrawTarget};
 use time::{Duration, OffsetDateTime};
-use time_tz::{timezones::db::europe::BERLIN, OffsetDateTimeExt};
+use time_tz::{OffsetDateTimeExt, timezones::db::europe::BERLIN};
 
-use crate::{Draw, Rng, FONT_10X20};
+use crate::{Draw, FONT_10X20, Rng};
 
 use super::Screensaver;
 
