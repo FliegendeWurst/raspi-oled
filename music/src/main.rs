@@ -1,6 +1,6 @@
 #![feature(round_char_boundary, hash_extract_if)]
 
-use std::{env, fmt::Debug, time::Duration};
+use std::{env, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
 use gpiocdev::{
@@ -8,15 +8,17 @@ use gpiocdev::{
 	line::{Bias, EdgeDetection},
 };
 use mpv_status::MpvStatus;
-use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, Rgb565, Rng, TimeDisplay, new_rng};
+use raspi_lib::{BLACK, Draw, DrawTarget, Rng, TimeDisplay, new_rng};
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
 	spi::{Bus, Mode, SlaveSelect, Spi},
 };
 use ssd1351::display::display::Ssd1351;
+use ui::Ui;
 
 mod mpv_status;
+mod ui;
 
 const BUTTON_PINS: &[u32] = &[17, 22];
 
@@ -164,20 +166,37 @@ fn pc_main() {
 	});
 }
 
-fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, mut lines: Request) {
+fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, lines: Request) {
 	let mpv = MpvStatus::new();
 	let time = TimeDisplay::new();
+	let mut active_ui: Option<Ui> = None;
 	loop {
 		// check user input
 		while lines.has_edge_event() == Ok(true) {
 			let ev = lines.read_edge_event().unwrap();
-			println!("{ev:?}");
+			let idx = BUTTON_PINS.iter().position(|&offset| offset == ev.offset).unwrap();
+			if let Some(ai) = active_ui {
+				let res = ai.handle(idx);
+				match res {
+					ui::UiResult::Ignore => active_ui = Some(ai),
+					ui::UiResult::Close => active_ui = None,
+					ui::UiResult::Replace(new_id) => active_ui = Some(Ui::new(new_id)),
+				}
+			} else {
+				match idx {
+					1 => active_ui = Some(Ui::new("exit")),
+					_ => {},
+				}
+			}
 		}
-
 		let mut buffer_dirty = false;
-		buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
-		if !mpv.active() {
-			buffer_dirty |= time.draw(&mut disp, rng).unwrap();
+		if let Some(d) = &active_ui {
+			buffer_dirty |= d.draw(&mut disp, rng).unwrap();
+		} else {
+			buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
+			if !mpv.active() {
+				buffer_dirty |= time.draw(&mut disp, rng).unwrap();
+			}
 		}
 		if buffer_dirty {
 			let _ = disp.flush();

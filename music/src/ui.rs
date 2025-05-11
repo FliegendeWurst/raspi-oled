@@ -1,0 +1,54 @@
+use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, FONT, Point, Rgb565, Text};
+
+pub enum UiResult {
+	Ignore,
+	Close,
+	Replace(&'static str),
+}
+use UiResult::*;
+
+pub struct Ui {
+	id: &'static str,
+}
+
+impl Ui {
+	pub fn new(id: &'static str) -> Self {
+		Ui { id }
+	}
+
+	pub fn handle(&self, button: usize) -> UiResult {
+		match (self.id, button) {
+			("exit", 1) => {
+				println!("[CMD] shutdown");
+				Replace("exit_confirmed")
+			},
+			("exit", _) => Close,
+			("exit_confirmed", _) => Ignore,
+			_ => Close,
+		}
+	}
+}
+
+impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
+	fn draw(&self, disp: &mut D, _rng: &mut raspi_lib::Rng) -> Result<bool, <D as DrawTarget>::Error> {
+		disp.clear(BLACK)?;
+		match self.id {
+			"exit" => {
+				Text::new("Confirm\n   shutdown?", Point::new(4, 64 - 20), FONT).draw(disp)?;
+			},
+			"exit_confirmed" => {
+				Text::new("Unplug in\n  30 seconds", Point::new(4, 64 - 20), FONT).draw(disp)?;
+			},
+			_ => {},
+		}
+		Ok(true)
+	}
+
+	fn as_any(&self) -> &dyn std::any::Any {
+		self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+		self
+	}
+}
