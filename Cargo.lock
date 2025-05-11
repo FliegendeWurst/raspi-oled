@@ -1397,6 +1397,7 @@ version = "0.1.0"
 dependencies = [
  "display-interface-spi",
  "frame-output",
+ "gpiocdev",
  "image 0.25.6",
  "playerctl-rust-wrapper",
  "raspi-lib",

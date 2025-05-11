@@ -3,6 +3,10 @@
 use std::{env, fmt::Debug, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
+use gpiocdev::{
+	Request,
+	line::{Bias, EdgeDetection},
+};
 use mpv_status::MpvStatus;
 use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, Rgb565, Rng, TimeDisplay, new_rng};
 use rppal::{
@@ -13,6 +17,8 @@ use rppal::{
 use ssd1351::display::display::Ssd1351;
 
 mod mpv_status;
+
+const BUTTON_PINS: &[u32] = &[17, 22];
 
 fn main() {
 	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
@@ -33,7 +39,18 @@ fn main() {
 		disp.turn_on().unwrap();
 		let _ = disp.clear(BLACK);
 
-		real_main(disp, &mut rng);
+		let mut lines = gpiocdev::Request::builder();
+		lines.on_chip("/dev/gpiochip0");
+		for &line in BUTTON_PINS {
+			lines
+				.with_line(line)
+				.with_edge_detection(EdgeDetection::RisingEdge)
+				.with_debounce_period(Duration::from_millis(200))
+				.with_bias(Bias::PullDown);
+		}
+		let lines = lines.request().unwrap();
+
+		real_main(disp, &mut rng, lines);
 	} else {
 		pc_main();
 	}
@@ -147,10 +164,16 @@ fn pc_main() {
 	});
 }
 
-fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng) {
+fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, mut lines: Request) {
 	let mpv = MpvStatus::new();
 	let time = TimeDisplay::new();
 	loop {
+		// check user input
+		while lines.has_edge_event() == Ok(true) {
+			let ev = lines.read_edge_event().unwrap();
+			println!("{ev:?}");
+		}
+
 		let mut buffer_dirty = false;
 		buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
 		if !mpv.active() {
