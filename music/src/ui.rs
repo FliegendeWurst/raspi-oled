@@ -7,6 +7,8 @@ pub enum UiResult {
 }
 use UiResult::*;
 
+use crate::command::execute;
+
 pub struct Ui {
 	id: &'static str,
 }
@@ -20,6 +22,7 @@ impl Ui {
 		match (self.id, button) {
 			("exit", 1) => {
 				println!("[CMD] shutdown");
+				execute(&["bash", "-c", "(sleep 2 && sudo shutdown now) &"]);
 				Replace("exit_confirmed")
 			},
 			("exit", _) => Close,

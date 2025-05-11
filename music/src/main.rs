@@ -17,6 +17,7 @@ use rppal::{
 use ssd1351::display::display::Ssd1351;
 use ui::Ui;
 
+mod command;
 mod mpv_status;
 mod ui;
 
