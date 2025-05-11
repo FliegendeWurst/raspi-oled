@@ -182,8 +182,6 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for MpvStatus {
 				let len = format!("{}:{:0>2}", secs / 60, secs % 60);
 				Text::new(&len, Point::new(124 - 10 * len.len() as i32, 64 - 0), font).draw(disp)?;
 			}
-		} else {
-			disp.clear(BLACK)?;
 		}
 		Ok(buffer_dirty)
 	}

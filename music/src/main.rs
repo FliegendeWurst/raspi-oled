@@ -151,11 +151,14 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 	let mpv = MpvStatus::new();
 	let time = TimeDisplay::new();
 	loop {
-		let _ = mpv.draw(&mut disp, rng);
+		let mut buffer_dirty = false;
+		buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
 		if !mpv.active() {
-			time.draw(&mut disp, rng).unwrap();
+			buffer_dirty |= time.draw(&mut disp, rng).unwrap();
 		}
-		let _ = disp.flush();
+		if buffer_dirty {
+			let _ = disp.flush();
+		}
 		sleep_ms(500);
 	}
 }
