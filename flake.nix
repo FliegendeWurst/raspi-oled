@@ -94,7 +94,7 @@
 
           music = pkgs.rustPlatform.buildRustPackage {
             pname = "music";
-            version = "0-unstable-${version}";
+            version = "0-unstable-${toString self.revCount}";
 
             src = ./.;
             buildAndTestSubdir = "music";

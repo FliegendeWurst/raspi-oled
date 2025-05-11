@@ -4,7 +4,7 @@ use std::{env, fmt::Debug, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
 use mpv_status::MpvStatus;
-use raspi_lib::{Draw, DrawTarget, Drawable, Rgb565, Rng, TimeDisplay, new_rng};
+use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, Rgb565, Rng, TimeDisplay, new_rng};
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
@@ -31,6 +31,7 @@ fn main() {
 		// Reset & init display
 		disp.reset(&mut rst, &mut Delay).unwrap();
 		disp.turn_on().unwrap();
+		let _ = disp.clear(BLACK);
 
 		real_main(disp, &mut rng);
 	} else {
@@ -146,17 +147,17 @@ fn pc_main() {
 	});
 }
 
-fn real_main<D: DrawTarget<Color = Rgb565>>(mut disp: D, rng: &mut Rng)
-where
-	D::Error: Debug,
-{
+fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng) {
 	let mpv = MpvStatus::new();
+	let time = TimeDisplay::new();
 	loop {
 		let _ = mpv.draw(&mut disp, rng);
+		if !mpv.active() {
+			time.draw(&mut disp, rng).unwrap();
+		}
+		let _ = disp.flush();
 		sleep_ms(500);
 	}
-	// let time = TimeDisplay::new();
-	// time.draw(&mut disp, rng).unwrap();
 }
 
 fn sleep_ms(ms: u32) {

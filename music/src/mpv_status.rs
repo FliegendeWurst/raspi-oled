@@ -30,6 +30,10 @@ impl MpvStatus {
 			start: Instant::now(),
 		}
 	}
+
+	pub fn active(&self) -> bool {
+		self.metadata.lock().unwrap().contains_key("mpv")
+	}
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for MpvStatus {
