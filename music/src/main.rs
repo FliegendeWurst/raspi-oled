@@ -1,8 +1,9 @@
 #![feature(round_char_boundary)]
 
-use std::{env, fmt::Debug};
+use std::{env, fmt::Debug, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
+use mpv_status::MpvStatus;
 use raspi_lib::{Draw, DrawTarget, Drawable, Rgb565, Rng, TimeDisplay, new_rng};
 use rppal::{
 	gpio::Gpio,
@@ -149,6 +150,15 @@ fn real_main<D: DrawTarget<Color = Rgb565>>(mut disp: D, rng: &mut Rng)
 where
 	D::Error: Debug,
 {
-	let time = TimeDisplay::new();
-	time.draw(&mut disp, rng).unwrap();
+	let mpv = MpvStatus::new();
+	loop {
+		let _ = mpv.draw(&mut disp, rng);
+		sleep_ms(500);
+	}
+	// let time = TimeDisplay::new();
+	// time.draw(&mut disp, rng).unwrap();
+}
+
+fn sleep_ms(ms: u32) {
+	std::thread::sleep(Duration::from_millis(ms as _));
 }
