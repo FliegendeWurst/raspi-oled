@@ -1,5 +1,8 @@
 #![feature(round_char_boundary, hash_extract_if)]
 
+// build using
+// nix build .#packages.x86_64-linux-cross-muslpi.music && nix store sign -k ~/.local/share/nix-store-binary-cache-key-secret $(readlink -f result) && nix copy --to ssh://pi@himbeere-mit-musik $(readlink -f result) && echo $(readlink -f result)
+
 use std::{env, time::Duration};
 
 use display_interface_spi::SPIInterfaceNoCS;
