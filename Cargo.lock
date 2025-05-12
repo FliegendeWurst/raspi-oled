@@ -1395,6 +1395,7 @@ dependencies = [
 name = "music"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "display-interface-spi",
  "frame-output",
  "gpiocdev",

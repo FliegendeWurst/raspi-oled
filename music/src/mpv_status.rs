@@ -4,7 +4,8 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use image::{DynamicImage, GenericImageView, ImageReader};
+use base64::{Engine, prelude::BASE64_STANDARD};
+use image::{DynamicImage, GenericImageView, ImageFormat, ImageReader};
 use playerctl_rust_wrapper::{PlayerMetadata, Playerctl};
 use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, FONT, Pixel, Point, Rectangle, Rgb565, Screensaver, Text};
 
@@ -108,6 +109,14 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for MpvStatus {
 					if let Some(file) = art.strip_prefix("file://") {
 						if let Ok(img) = ImageReader::open(file) {
 							if let Ok(img) = img.decode() {
+								let thumb = img.thumbnail(64, 64);
+								buffer_dirty = true;
+								disp.copy_from(&thumb, 4, (128 - thumb.height()) / 2)?; // or (128 - thumb.width()) / 2
+							}
+						}
+					} else if let Some(encoded) = art.strip_prefix("data:image/jpeg;base64,") {
+						if let Ok(decoded) = BASE64_STANDARD.decode(encoded) {
+							if let Ok(img) = image::load_from_memory_with_format(&decoded, ImageFormat::Jpeg) {
 								let thumb = img.thumbnail(64, 64);
 								buffer_dirty = true;
 								disp.copy_from(&thumb, 4, (128 - thumb.height()) / 2)?; // or (128 - thumb.width()) / 2
