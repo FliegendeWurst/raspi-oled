@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use raspi_lib::{BLACK, Draw, DrawTarget, Drawable, FONT, Point, Rgb565, Text};
 
 pub enum UiResult {
@@ -11,11 +13,15 @@ use crate::command::execute;
 
 pub struct Ui {
 	id: &'static str,
+	drawn: RefCell<bool>,
 }
 
 impl Ui {
 	pub fn new(id: &'static str) -> Self {
-		Ui { id }
+		Ui {
+			id,
+			drawn: RefCell::new(false),
+		}
 	}
 
 	pub fn handle(&self, button: usize) -> UiResult {
@@ -34,6 +40,10 @@ impl Ui {
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 	fn draw(&self, disp: &mut D, _rng: &mut raspi_lib::Rng) -> Result<bool, <D as DrawTarget>::Error> {
+		if *self.drawn.borrow() {
+			return Ok(false);
+		}
+		*self.drawn.borrow_mut() = true;
 		disp.clear(BLACK)?;
 		match self.id {
 			"exit" => {

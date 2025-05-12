@@ -21,7 +21,7 @@ mod command;
 mod mpv_status;
 mod ui;
 
-const BUTTON_PINS: &[u32] = &[17, 22];
+const BUTTON_PINS: &[u32] = &[17, 22, 5, 6, 26, 16];
 
 fn main() {
 	let args: Vec<_> = env::args().map(|x| x.to_string()).collect();
@@ -44,12 +44,19 @@ fn main() {
 
 		let mut lines = gpiocdev::Request::builder();
 		lines.on_chip("/dev/gpiochip0");
-		for &line in BUTTON_PINS {
+		for &line in &BUTTON_PINS[0..2] {
 			lines
 				.with_line(line)
 				.with_edge_detection(EdgeDetection::RisingEdge)
 				.with_debounce_period(Duration::from_millis(50))
 				.with_bias(Bias::PullDown);
+		}
+		for &line in &BUTTON_PINS[2..6] {
+			lines
+				.with_line(line)
+				.with_edge_detection(EdgeDetection::FallingEdge)
+				.with_debounce_period(Duration::from_millis(50))
+				.with_bias(Bias::PullUp);
 		}
 		let lines = lines.request().unwrap();
 
@@ -185,8 +192,17 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 				}
 			} else {
 				match idx {
+					0 => {},
 					1 => active_ui = Some(Ui::new("exit")),
-					_ => {},
+					2 => {},
+					3 => {
+						// volume up
+					},
+					4 => {},
+					5 => {
+						// volume down
+					},
+					_ => unreachable!(),
 				}
 			}
 		}
