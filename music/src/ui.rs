@@ -98,7 +98,7 @@ impl Ui {
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 	fn draw(&self, disp: &mut D, _rng: &mut raspi_lib::Rng) -> Result<bool, <D as DrawTarget>::Error> {
 		*self.drawn.borrow_mut() += 1;
-		if *self.drawn.borrow() > 1 {
+		if *self.drawn.borrow() > 1 && self.id != "select" {
 			return Ok(false);
 		}
 		let iters = *self.drawn.borrow() - 1;
@@ -147,11 +147,13 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 				let page = pages.nth(active_page).unwrap();
 				for i in 0..6 {
 					let styl = if i == active_idx { FONT_RED } else { FONT };
-					let name = &page[i];
-					if name.len() <= 12 {
-						Text::new(name, Point::new(4, 14 + i as i32 * 20), styl).draw(disp)?;
-					} else {
-						draw_scrolling!(name, 14 + i as i32 * 20, styl);
+					if i < page.len() {
+						let name = &page[i];
+						if name.len() <= 12 {
+							Text::new(name, Point::new(4, 14 + i as i32 * 20), styl).draw(disp)?;
+						} else {
+							draw_scrolling!(name, 14 + i as i32 * 20, styl);
+						}
 					}
 				}
 			},
