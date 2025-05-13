@@ -87,7 +87,6 @@ fn pc_main() {
 
 	use frame_output::FrameOutput;
 	use mpv_status::MpvStatus;
-	use raspi_lib::{BLACK, FONT_10X20, MonoTextStyleBuilder, Point, Rectangle, Text, WHITE};
 	use winit::{
 		dpi::LogicalSize,
 		event::{Event, WindowEvent},
@@ -109,7 +108,6 @@ fn pc_main() {
 	let mut buffer_dirty = true;
 
 	let mut rng = new_rng();
-	let font = MonoTextStyleBuilder::new().font(&FONT_10X20).text_color(WHITE).build();
 	let mpv = MpvStatus::new();
 
 	event_loop.run(move |event, _, control_flow| {
@@ -183,7 +181,7 @@ fn pc_main() {
 
 fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, lines: Request) {
 	let mpv = MpvStatus::new();
-	let time = TimeDisplay::new();
+	let mut time = TimeDisplay::new();
 	let mut active_ui: Option<Ui> = None;
 	loop {
 		// check user input
@@ -194,7 +192,10 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 				let res = ai.handle(idx);
 				match res {
 					ui::UiResult::Ignore => active_ui = Some(ai),
-					ui::UiResult::Close => active_ui = None,
+					ui::UiResult::Close => {
+						active_ui = None;
+						time.redraw();
+					},
 					ui::UiResult::Replace(new_id) => active_ui = Some(Ui::new(new_id)),
 				}
 			} else {

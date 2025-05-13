@@ -30,6 +30,11 @@ impl TimeDisplay {
 			),
 		}
 	}
+
+	pub fn redraw(&mut self) {
+		let it = self.last_min.get_mut();
+		*it = it.checked_sub(Duration::minutes(1)).unwrap();
+	}
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Screensaver<D> for TimeDisplay {
