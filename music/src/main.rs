@@ -227,6 +227,10 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 		let mut buffer_dirty = false;
 		if let Some(d) = &active_ui {
 			buffer_dirty |= d.draw(&mut disp, rng).unwrap();
+			if d.should_close() {
+				active_ui = None;
+				time.redraw();
+			}
 		} else {
 			buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
 			if !mpv.active() {

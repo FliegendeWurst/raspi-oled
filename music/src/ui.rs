@@ -46,6 +46,10 @@ impl Ui {
 			_ => Close,
 		}
 	}
+
+	pub fn should_close(&self) -> bool {
+		matches!(self.id, "volume") && *self.drawn.borrow() > 5
+	}
 }
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
