@@ -54,10 +54,10 @@ impl Ui {
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 	fn draw(&self, disp: &mut D, _rng: &mut raspi_lib::Rng) -> Result<bool, <D as DrawTarget>::Error> {
-		if *self.drawn.borrow() > 0 {
+		*self.drawn.borrow_mut() += 1;
+		if *self.drawn.borrow() > 1 {
 			return Ok(false);
 		}
-		*self.drawn.borrow_mut() += 1;
 		disp.clear(BLACK)?;
 		match self.id {
 			"exit" => {
