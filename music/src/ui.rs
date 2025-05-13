@@ -101,7 +101,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 		if *self.drawn.borrow() > 1 && self.id != "select" {
 			return Ok(false);
 		}
-		let iters = *self.drawn.borrow() - 1;
+		let iters = 2 * (*self.drawn.borrow() - 1);
 		disp.clear(BLACK)?;
 
 		macro_rules! draw_scrolling {
@@ -113,8 +113,11 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 					Text::new($string, Point::new(4 + pad as i32, $y), $styl).draw(disp)?;
 				} else {
 					let pad = " ".repeat(max_len);
-					let full = format!("{pad}{}{pad}  ", $string);
-					let idx_start = iters as usize % (full.len() - max_len);
+					let full = format!("   {}{pad}  ", $string);
+					let mut idx_start = iters as usize % (full.len() - max_len);
+					if idx_start < 3 {
+						idx_start = 3;
+					}
 					Text::new(
 						&full[full.ceil_char_boundary(idx_start)..full.floor_char_boundary(idx_start + max_len)],
 						Point::new(4, $y),
