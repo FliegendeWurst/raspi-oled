@@ -5,7 +5,7 @@
 
 use std::{env, time::Duration};
 
-use command::{get_volume, set_volume};
+use command::{get_volume, list_folders, set_volume, start_mpv};
 use display_interface_spi::SPIInterfaceNoCS;
 use gpiocdev::{
 	Request,
@@ -180,7 +180,7 @@ fn pc_main() {
 }
 
 fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, lines: Request) {
-	let mpv = MpvStatus::new();
+	let mut mpv = MpvStatus::new();
 	let mut time = TimeDisplay::new();
 	let mut active_ui: Option<Ui> = None;
 	loop {
@@ -188,7 +188,7 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 		while lines.has_edge_event() == Ok(true) {
 			let ev = lines.read_edge_event().unwrap();
 			let idx = BUTTON_PINS.iter().position(|&offset| offset == ev.offset).unwrap();
-			if let Some(ai) = active_ui {
+			if let Some(mut ai) = active_ui {
 				let res = ai.handle(idx);
 				match res {
 					ui::UiResult::Ignore => active_ui = Some(ai),
@@ -207,11 +207,19 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 							active_ui = Some(Ui::new(new_id));
 						}
 					},
+					ui::UiResult::Play(folder) => {
+						active_ui = None;
+						start_mpv(&folder);
+						mpv.re_request();
+					},
 				}
 			} else {
 				let mut show_vol = false;
 				match idx {
-					0 => {},
+					0 => {
+						let dirs = list_folders();
+						active_ui = Some(Ui::new_aux2("select", dirs));
+					},
 					1 => active_ui = Some(Ui::new("exit")),
 					2 => {},
 					3 => {

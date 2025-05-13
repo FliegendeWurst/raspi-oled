@@ -10,9 +10,12 @@ pub use embedded_graphics::mono_font::MonoTextStyleBuilder;
 
 pub const BLACK: Rgb565 = Rgb565::new(0, 0, 0);
 pub const WHITE: Rgb565 = Rgb565::new(0xff, 0xff, 0xff);
+pub const RED: Rgb565 = Rgb565::new(0xff, 0, 0);
 
 pub static FONT: MonoTextStyle<'static, Rgb565> =
 	MonoTextStyleBuilder::new().font(&FONT_10X20).text_color(WHITE).build();
+pub static FONT_RED: MonoTextStyle<'static, Rgb565> =
+	MonoTextStyleBuilder::new().font(&FONT_10X20).text_color(RED).build();
 
 pub use embedded_graphics::Pixel;
 pub use embedded_graphics::prelude::Point;

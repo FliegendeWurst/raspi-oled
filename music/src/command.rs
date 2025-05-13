@@ -1,6 +1,7 @@
 use std::{
 	error::Error,
 	fmt::Display,
+	fs,
 	io::{self, Read},
 	process::{Command, Stdio},
 };
@@ -35,6 +36,25 @@ pub fn set_volume(delta: &str) {
 		.args(["set-sink-volume", "@DEFAULT_SINK@", delta])
 		.spawn()
 		.unwrap();
+	let _wait = spawned.wait().unwrap();
+}
+
+pub fn list_folders() -> Vec<String> {
+	let mut it = vec![];
+	for x in fs::read_dir("/home/pi/Music").unwrap() {
+		let dent = x.unwrap();
+		it.push(dent.file_name().into_string().unwrap());
+	}
+	it
+}
+
+pub fn start_mpv(folder: &str) {
+	let cmd = "sh";
+	let args = [
+		"-c".to_owned(),
+		format!("mpv --no-video '/home/pi/Music/{}' >/dev/null 2>/dev/null &", folder),
+	];
+	let mut spawned = Command::new(cmd).args(args).spawn().unwrap();
 	let _wait = spawned.wait().unwrap();
 }
 

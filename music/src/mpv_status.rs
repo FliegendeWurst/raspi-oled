@@ -29,6 +29,11 @@ impl MpvStatus {
 		}
 	}
 
+	pub fn re_request(&mut self) {
+		let mut fetch = self.fetched.lock().unwrap();
+		*fetch = fetch.checked_sub(Duration::from_secs(60)).unwrap();
+	}
+
 	pub fn active(&self) -> bool {
 		self.metadata.lock().unwrap().contains_key("mpv")
 	}
