@@ -91,7 +91,7 @@ impl Ui {
 	}
 
 	pub fn should_close(&self) -> bool {
-		matches!(self.id, "volume") && *self.drawn.borrow() > 0
+		matches!(self.id, "volume") && *self.drawn.borrow() > 2
 	}
 }
 
@@ -101,7 +101,7 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 		if *self.drawn.borrow() > 1 && self.id != "select" {
 			return Ok(false);
 		}
-		let iters = 2 * (*self.drawn.borrow() - 1);
+		let iters = *self.drawn.borrow() - 1;
 		disp.clear(BLACK)?;
 
 		macro_rules! draw_scrolling {

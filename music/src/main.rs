@@ -268,7 +268,7 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 		if buffer_dirty {
 			let _ = disp.flush();
 		}
-		sleep_ms(500);
+		sleep_ms(100);
 	}
 }
 
