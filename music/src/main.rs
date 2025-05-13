@@ -5,6 +5,7 @@
 
 use std::{env, time::Duration};
 
+use command::{get_volume, set_volume};
 use display_interface_spi::SPIInterfaceNoCS;
 use gpiocdev::{
 	Request,
@@ -31,6 +32,9 @@ fn main() {
 	let mut rng = new_rng();
 
 	if rppal::system::DeviceInfo::new().is_ok() {
+		// Boot up pulseaudio socket
+		let _ = get_volume();
+
 		let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 		let gpio = Gpio::new().unwrap();
 		let dc = gpio.get(25).unwrap().into_output();
@@ -194,18 +198,28 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 					ui::UiResult::Replace(new_id) => active_ui = Some(Ui::new(new_id)),
 				}
 			} else {
+				let mut show_vol = false;
 				match idx {
 					0 => {},
 					1 => active_ui = Some(Ui::new("exit")),
 					2 => {},
 					3 => {
 						// volume up
+						set_volume("+5%");
+						show_vol = true;
 					},
 					4 => {},
 					5 => {
 						// volume down
+						set_volume("-5%");
+						show_vol = true;
 					},
 					_ => unreachable!(),
+				}
+				if show_vol {
+					if let Ok(vol) = get_volume() {
+						active_ui = Some(Ui::new_aux1("volume", vol));
+					}
 				}
 			}
 		}

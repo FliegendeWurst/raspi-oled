@@ -13,14 +13,24 @@ use crate::command::execute;
 
 pub struct Ui {
 	id: &'static str,
-	drawn: RefCell<bool>,
+	drawn: RefCell<u32>,
+	aux1: i32,
 }
 
 impl Ui {
 	pub fn new(id: &'static str) -> Self {
 		Ui {
 			id,
-			drawn: RefCell::new(false),
+			drawn: RefCell::new(0),
+			aux1: 0,
+		}
+	}
+
+	pub fn new_aux1(id: &'static str, aux1: i32) -> Self {
+		Ui {
+			id,
+			drawn: RefCell::new(0),
+			aux1,
 		}
 	}
 
@@ -40,10 +50,10 @@ impl Ui {
 
 impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 	fn draw(&self, disp: &mut D, _rng: &mut raspi_lib::Rng) -> Result<bool, <D as DrawTarget>::Error> {
-		if *self.drawn.borrow() {
+		if *self.drawn.borrow() > 0 {
 			return Ok(false);
 		}
-		*self.drawn.borrow_mut() = true;
+		*self.drawn.borrow_mut() += 1;
 		disp.clear(BLACK)?;
 		match self.id {
 			"exit" => {
@@ -51,6 +61,14 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 			},
 			"exit_confirmed" => {
 				Text::new("Unplug in\n  30 seconds", Point::new(4, 64 - 20), FONT).draw(disp)?;
+			},
+			"volume" => {
+				Text::new(
+					&format!("Volume\n{: >12}", format!("{}%", self.aux1)),
+					Point::new(4, 64 - 20),
+					FONT,
+				)
+				.draw(disp)?;
 			},
 			_ => {},
 		}
