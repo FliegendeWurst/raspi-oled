@@ -196,7 +196,17 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 						active_ui = None;
 						time.redraw();
 					},
-					ui::UiResult::Replace(new_id) => active_ui = Some(Ui::new(new_id)),
+					ui::UiResult::Replace(new_id) => {
+						if new_id == "volume" {
+							if let Ok(it) = get_volume() {
+								active_ui = Some(Ui::new_aux1("volume", it));
+							} else {
+								active_ui = None;
+							}
+						} else {
+							active_ui = Some(Ui::new(new_id));
+						}
+					},
 				}
 			} else {
 				let mut show_vol = false;

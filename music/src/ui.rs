@@ -9,7 +9,7 @@ pub enum UiResult {
 }
 use UiResult::*;
 
-use crate::command::execute;
+use crate::command::{execute, set_volume};
 
 pub struct Ui {
 	id: &'static str,
@@ -43,12 +43,20 @@ impl Ui {
 			},
 			("exit", _) => Close,
 			("exit_confirmed", _) => Ignore,
+			("volume", 3) => {
+				set_volume("+5%");
+				Replace("volume")
+			},
+			("volume", 5) => {
+				set_volume("-5%");
+				Replace("volume")
+			},
 			_ => Close,
 		}
 	}
 
 	pub fn should_close(&self) -> bool {
-		matches!(self.id, "volume") && *self.drawn.borrow() > 5
+		matches!(self.id, "volume") && *self.drawn.borrow() > 0
 	}
 }
 
