@@ -47,14 +47,18 @@ pub fn list_folders() -> Vec<String> {
 			it.push(dent.file_name().into_string().unwrap());
 		}
 	}
+	it.sort_unstable();
 	it
 }
 
 pub fn start_mpv(folder: &str) {
-	let cmd = "sh";
+	let cmd = "bash";
 	let args = [
 		"-c".to_owned(),
-		format!("mpv --no-video '/home/pi/Music/{}' >/dev/null 2>/dev/null &", folder),
+		format!(
+			"mpv --no-video '/home/pi/Music/{}' >/dev/null 2>/dev/null & disown",
+			folder
+		),
 	];
 	let mut spawned = Command::new(cmd).args(args).spawn().unwrap();
 	let _wait = spawned.wait().unwrap();
