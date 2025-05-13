@@ -101,7 +101,30 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 		if *self.drawn.borrow() > 1 {
 			return Ok(false);
 		}
+		let iters = *self.drawn.borrow() - 1;
 		disp.clear(BLACK)?;
+
+		macro_rules! draw_scrolling {
+			($string:expr, $y:expr, $styl:expr) => {
+				let max_len = 128 / 10;
+				if $string.len() <= max_len {
+					let size = $string.len() * 10;
+					let pad = (max_len * 10 - size) / 2;
+					Text::new($string, Point::new(4 + pad as i32, $y), $styl).draw(disp)?;
+				} else {
+					let pad = " ".repeat(max_len);
+					let full = format!("{pad}{}{pad}  ", $string);
+					let idx_start = iters as usize % (full.len() - max_len);
+					Text::new(
+						&full[full.ceil_char_boundary(idx_start)..full.floor_char_boundary(idx_start + max_len)],
+						Point::new(4, $y),
+						$styl,
+					)
+					.draw(disp)?;
+				}
+			};
+		}
+
 		match self.id {
 			"exit" => {
 				Text::new("Confirm\n   shutdown?", Point::new(4, 64 - 20), FONT).draw(disp)?;
@@ -125,12 +148,11 @@ impl<D: DrawTarget<Color = Rgb565>> Draw<D> for Ui {
 				for i in 0..6 {
 					let styl = if i == active_idx { FONT_RED } else { FONT };
 					let name = &page[i];
-					Text::new(
-						&name[0..name.floor_char_boundary(12)],
-						Point::new(4, 14 + i as i32 * 20),
-						styl,
-					)
-					.draw(disp)?;
+					if name.len() <= 12 {
+						Text::new(name, Point::new(4, 14 + i as i32 * 20), styl).draw(disp)?;
+					} else {
+						draw_scrolling!(name, 14 + i as i32 * 20, styl);
+					}
 				}
 			},
 			_ => {},

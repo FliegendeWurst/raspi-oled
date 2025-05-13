@@ -12,6 +12,7 @@ use gpiocdev::{
 	line::{Bias, EdgeDetection},
 };
 use mpv_status::MpvStatus;
+use playerctl_rust_wrapper::Playerctl;
 use raspi_lib::{BLACK, Draw, DrawTarget, Rng, TimeDisplay, new_rng};
 use rppal::{
 	gpio::Gpio,
@@ -209,6 +210,7 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 					},
 					ui::UiResult::Play(folder) => {
 						active_ui = None;
+						time.redraw();
 						start_mpv(&folder);
 						mpv.re_request();
 					},
@@ -220,7 +222,11 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 						let dirs = list_folders();
 						active_ui = Some(Ui::new_aux2("select", dirs));
 					},
-					1 => active_ui = Some(Ui::new("exit")),
+					1 if !mpv.active() => active_ui = Some(Ui::new("exit")),
+					1 => {
+						let _ = Playerctl::stop();
+						mpv.re_request();
+					},
 					2 => {},
 					3 => {
 						// volume up
@@ -250,8 +256,12 @@ fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, r
 				time.redraw();
 			}
 		} else {
+			let mpv_active = mpv.active();
 			buffer_dirty |= mpv.draw(&mut disp, rng).unwrap();
 			if !mpv.active() {
+				if mpv_active {
+					time.redraw();
+				}
 				buffer_dirty |= time.draw(&mut disp, rng).unwrap();
 			}
 		}

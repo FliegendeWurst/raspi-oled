@@ -1,7 +1,7 @@
 use std::{
 	error::Error,
 	fmt::Display,
-	fs,
+	fs::{self},
 	io::{self, Read},
 	process::{Command, Stdio},
 };
@@ -43,7 +43,9 @@ pub fn list_folders() -> Vec<String> {
 	let mut it = vec![];
 	for x in fs::read_dir("/home/pi/Music").unwrap() {
 		let dent = x.unwrap();
-		it.push(dent.file_name().into_string().unwrap());
+		if dent.file_type().unwrap().is_dir() {
+			it.push(dent.file_name().into_string().unwrap());
+		}
 	}
 	it
 }
