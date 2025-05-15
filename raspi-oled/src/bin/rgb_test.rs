@@ -3,7 +3,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use display_interface_spi::SPIInterfaceNoCS;
+use display_interface_spi::SPIInterface;
 use embedded_graphics::{
 	draw_target::DrawTarget,
 	mono_font::{ascii::FONT_10X20, MonoTextStyleBuilder},
@@ -15,7 +15,7 @@ use embedded_graphics::{
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
-	spi::{Bus, Mode, SlaveSelect, Spi},
+	spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 //use ssd1351::{properties::DisplaySize, mode::{GraphicsMode, displaymode::DisplayModeTrait}};
 
@@ -33,7 +33,7 @@ fn main() {
 	let mut rst = gpio.get(27).unwrap().into_output();
 
 	// Init SPI
-	let spii = SPIInterfaceNoCS::new(spi, dc);
+	let spii = SPIInterface::new(SimpleHalSpiDevice::new(spi), dc);
 	let mut disp = ssd1351::display::display::Ssd1351::new(spii);
 
 	// Reset & init

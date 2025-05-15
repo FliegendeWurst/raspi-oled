@@ -2,7 +2,7 @@
 
 use std::{fmt::Debug, fs, ops::Sub, time::Duration};
 
-use display_interface_spi::SPIInterfaceNoCS;
+use display_interface_spi::SPIInterface;
 use embedded_graphics::{
 	draw_target::DrawTarget,
 	mono_font::{
@@ -19,7 +19,7 @@ use embedded_graphics::{
 use raspi_oled::Events;
 use rppal::{
 	gpio::Gpio,
-	spi::{Bus, Mode, SlaveSelect, Spi},
+	spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 use rusqlite::Connection;
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime};
@@ -122,7 +122,7 @@ fn main() {
 	let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 19660800, Mode::Mode0).unwrap();
 	let gpio = Gpio::new().unwrap();
 	let dc = gpio.get(25).unwrap().into_output();
-	let spii = SPIInterfaceNoCS::new(spi, dc);
+	let spii = SPIInterface::new(SimpleHalSpiDevice::new(spi), dc);
 	let disp = ssd1351::display::display::Ssd1351::new(spii);
 	//let mut disp = FrameOutput::new(128, 128);
 

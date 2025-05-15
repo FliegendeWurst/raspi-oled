@@ -6,7 +6,7 @@
 use std::{env, time::Duration};
 
 use command::{get_volume, list_folders, set_volume, start_mpv};
-use display_interface_spi::SPIInterfaceNoCS;
+use display_interface_spi::SPIInterface;
 use gpiocdev::{
 	Request,
 	line::{Bias, EdgeDetection},
@@ -17,7 +17,7 @@ use raspi_lib::{BLACK, Draw, DrawTarget, Rng, TimeDisplay, new_rng};
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
-	spi::{Bus, Mode, SlaveSelect, Spi},
+	spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 use ssd1351::display::display::Ssd1351;
 use ui::Ui;
@@ -42,7 +42,7 @@ fn main() {
 		let mut rst = gpio.get(27).unwrap().into_output();
 
 		// Init SPI
-		let spii = SPIInterfaceNoCS::new(spi, dc);
+		let spii = SPIInterface::new(SimpleHalSpiDevice::new(spi), dc);
 		let mut disp = Ssd1351::new(spii);
 
 		// Reset & init display
@@ -180,7 +180,7 @@ fn pc_main() {
 	});
 }
 
-fn real_main(mut disp: Ssd1351<SPIInterfaceNoCS<Spi, rppal::gpio::OutputPin>>, rng: &mut Rng, lines: Request) {
+fn real_main(mut disp: Ssd1351<SPIInterface<SimpleHalSpiDevice, rppal::gpio::OutputPin>>, rng: &mut Rng, lines: Request) {
 	let mut mpv = MpvStatus::new();
 	let mut time = TimeDisplay::new();
 	let mut active_ui: Option<Ui> = None;

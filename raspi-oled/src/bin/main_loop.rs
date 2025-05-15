@@ -5,7 +5,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use display_interface_spi::SPIInterfaceNoCS;
+use display_interface_spi::SPIInterface;
 use embedded_graphics::{pixelcolor::Rgb565, prelude::DrawTarget};
 use gpiocdev::line::{Bias, EdgeDetection, Value};
 use rand_xoshiro::{rand_core::SeedableRng, Xoroshiro128StarStar};
@@ -18,11 +18,11 @@ use raspi_oled::{disable_pwm, enable_pwm, PWM_ON};
 use rppal::{
 	gpio::{Gpio, OutputPin},
 	hal::Delay,
-	spi::{Bus, Mode, SlaveSelect, Spi},
+	spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 use ssd1351::display::display::Ssd1351;
 
-pub type Oled = Ssd1351<SPIInterfaceNoCS<Spi, OutputPin>>;
+pub type Oled = Ssd1351<SPIInterface<SimpleHalSpiDevice, OutputPin>>;
 
 static BLACK: Rgb565 = Rgb565::new(0, 0, 0);
 /// Delay after drawing a frame in milliseconds.
@@ -161,7 +161,7 @@ fn rpi_main() {
 	let mut rst = gpio.get(27).unwrap().into_output();
 
 	// Init SPI
-	let spii = SPIInterfaceNoCS::new(spi, dc);
+	let spii = SPIInterface::new(SimpleHalSpiDevice::new(spi), dc);
 	let mut disp = Ssd1351::new(spii);
 
 	// Reset & init display

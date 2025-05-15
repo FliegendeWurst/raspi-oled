@@ -1,8 +1,8 @@
-use display_interface_spi::SPIInterfaceNoCS;
+use display_interface_spi::SPIInterface;
 use rppal::{
 	gpio::Gpio,
 	hal::Delay,
-	spi::{Bus, Mode, SlaveSelect, Spi},
+	spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 
 fn main() {
@@ -20,7 +20,7 @@ fn display_on_ssd1306(on: bool) {
 	let mut rst = gpio.get(27).unwrap().into_output();
 
 	// Init SPI
-	let spii = SPIInterfaceNoCS::new(spi, dc);
+	let spii = SPIInterface::new(SimpleHalSpiDevice::new(spi), dc);
 	let mut disp = ssd1351::display::display::Ssd1351::new(spii);
 
 	// Reset & init

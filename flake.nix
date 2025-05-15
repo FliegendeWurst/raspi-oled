@@ -102,7 +102,7 @@
             cargoLock = {
               lockFile = ./Cargo.lock;
               outputHashes = {
-                "ssd1351-0.3.0" = "sha256-DD7+NhYwUwD/xC+7ZUNKdhcfsSCOQ9NVEy9lcS47Q5E=";
+                "ssd1351-0.3.0" = "sha256-7O4RIiu/N2DIAPEwpPAzkc5aNfUzN7aGtn3GUlAbzEM=";
                 "playerctl-rust-wrapper-0.1.0" = "sha256-0sTvZSClSXolh/peIwSno1O0rY7gn7Rj8T37kg4jRD4=";
               };
             };
